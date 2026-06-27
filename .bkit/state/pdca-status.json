@@ -1,0 +1,467 @@
+{
+  "version": "2.0",
+  "lastUpdated": "2026-06-27T03:47:15.045Z",
+  "activeFeatures": [
+    "core",
+    "dyna_io",
+    "scratchpad",
+    "hand",
+    "blender_core",
+    "DigitalTwinSimulation",
+    "tests",
+    "cli",
+    "fixtures",
+    "grip_variants"
+  ],
+  "primaryFeature": "core",
+  "features": {
+    "core": {
+      "phase": "do",
+      "phaseNumber": 3,
+      "matchRate": null,
+      "iterationCount": 0,
+      "requirements": [],
+      "documents": {},
+      "timestamps": {
+        "started": "2026-06-26T09:08:59.483Z",
+        "lastUpdated": "2026-06-26T09:08:59.483Z"
+      },
+      "lastFile": "/home/koopark/claude/DigitalTwinSimulation/src/core/result.py"
+    },
+    "dyna_io": {
+      "phase": "do",
+      "phaseNumber": 3,
+      "matchRate": null,
+      "iterationCount": 0,
+      "requirements": [],
+      "documents": {},
+      "timestamps": {
+        "started": "2026-06-26T10:57:32.697Z",
+        "lastUpdated": "2026-06-26T11:41:58.833Z"
+      },
+      "lastFile": "/home/koopark/claude/DigitalTwinSimulation/src/dyna_io/faces.py"
+    },
+    "scratchpad": {
+      "phase": "do",
+      "phaseNumber": 3,
+      "matchRate": null,
+      "iterationCount": 0,
+      "requirements": [],
+      "documents": {},
+      "timestamps": {
+        "started": "2026-06-26T10:58:36.281Z",
+        "lastUpdated": "2026-06-27T03:44:14.494Z"
+      },
+      "lastFile": "/tmp/claude-1000/-home-koopark-claude-DigitalTwinSimulation/df6e995d-977b-454e-b8c0-f6388dcb477c/scratchpad/test_rest.py"
+    },
+    "hand": {
+      "phase": "do",
+      "phaseNumber": 3,
+      "matchRate": null,
+      "iterationCount": 0,
+      "requirements": [],
+      "documents": {},
+      "timestamps": {
+        "started": "2026-06-26T11:15:59.321Z",
+        "lastUpdated": "2026-06-26T11:41:47.052Z"
+      },
+      "lastFile": "/home/koopark/claude/DigitalTwinSimulation/src/hand/procedural.py"
+    },
+    "blender_core": {
+      "phase": "do",
+      "phaseNumber": 3,
+      "matchRate": null,
+      "iterationCount": 0,
+      "requirements": [],
+      "documents": {},
+      "timestamps": {
+        "started": "2026-06-26T11:29:15.062Z",
+        "lastUpdated": "2026-06-26T21:07:29.022Z"
+      },
+      "lastFile": "/home/koopark/claude/DigitalTwinSimulation/src/blender_core/runner.py"
+    },
+    "DigitalTwinSimulation": {
+      "phase": "do",
+      "phaseNumber": 3,
+      "matchRate": null,
+      "iterationCount": 0,
+      "requirements": [],
+      "documents": {},
+      "timestamps": {
+        "started": "2026-06-26T11:29:28.008Z",
+        "lastUpdated": "2026-06-26T11:29:28.008Z"
+      },
+      "lastFile": "/home/koopark/claude/DigitalTwinSimulation/src/app/blender_io.py"
+    },
+    "tests": {
+      "phase": "do",
+      "phaseNumber": 3,
+      "matchRate": null,
+      "iterationCount": 0,
+      "requirements": [],
+      "documents": {},
+      "timestamps": {
+        "started": "2026-06-26T11:31:23.153Z",
+        "lastUpdated": "2026-06-26T13:24:13.268Z"
+      },
+      "lastFile": "/home/koopark/claude/DigitalTwinSimulation/tests/test_real_k.py"
+    },
+    "cli": {
+      "phase": "do",
+      "phaseNumber": 3,
+      "matchRate": null,
+      "iterationCount": 0,
+      "requirements": [],
+      "documents": {},
+      "timestamps": {
+        "started": "2026-06-26T13:24:31.813Z",
+        "lastUpdated": "2026-06-26T21:30:45.375Z"
+      },
+      "lastFile": "/home/koopark/claude/DigitalTwinSimulation/src/cli/dyna2stl.py"
+    },
+    "fixtures": {
+      "phase": "do",
+      "phaseNumber": 3,
+      "matchRate": null,
+      "iterationCount": 0,
+      "requirements": [],
+      "documents": {},
+      "timestamps": {
+        "started": "2026-06-26T14:49:58.246Z",
+        "lastUpdated": "2026-06-26T14:49:58.246Z"
+      },
+      "lastFile": "/home/koopark/claude/DigitalTwinSimulation/tests/fixtures/make_phone_k.py"
+    },
+    "grip_variants": {
+      "phase": "do",
+      "phaseNumber": 3,
+      "matchRate": null,
+      "iterationCount": 0,
+      "requirements": [],
+      "documents": {},
+      "timestamps": {
+        "started": "2026-06-27T00:54:20.389Z",
+        "lastUpdated": "2026-06-27T03:47:15.045Z"
+      },
+      "lastFile": "/tmp/claude-1000/-home-koopark-claude-DigitalTwinSimulation/df6e995d-977b-454e-b8c0-f6388dcb477c/scratchpad/grip_variants/approach_C.py"
+    }
+  },
+  "pipeline": {
+    "currentPhase": 1,
+    "level": "Dynamic",
+    "phaseHistory": []
+  },
+  "session": {
+    "startedAt": "2026-06-26T06:19:02.981Z",
+    "onboardingCompleted": false,
+    "lastActivity": "2026-06-27T03:47:15.045Z"
+  },
+  "history": [
+    {
+      "timestamp": "2026-06-26T09:08:59.483Z",
+      "feature": "core",
+      "phase": "do",
+      "action": "updated"
+    },
+    {
+      "timestamp": "2026-06-26T10:57:32.697Z",
+      "feature": "dyna_io",
+      "phase": "do",
+      "action": "updated"
+    },
+    {
+      "timestamp": "2026-06-26T10:57:40.854Z",
+      "feature": "dyna_io",
+      "phase": "do",
+      "action": "updated"
+    },
+    {
+      "timestamp": "2026-06-26T10:58:16.680Z",
+      "feature": "dyna_io",
+      "phase": "do",
+      "action": "updated"
+    },
+    {
+      "timestamp": "2026-06-26T10:58:18.313Z",
+      "feature": "dyna_io",
+      "phase": "do",
+      "action": "updated"
+    },
+    {
+      "timestamp": "2026-06-26T10:58:36.281Z",
+      "feature": "scratchpad",
+      "phase": "do",
+      "action": "updated"
+    },
+    {
+      "timestamp": "2026-06-26T11:15:59.321Z",
+      "feature": "hand",
+      "phase": "do",
+      "action": "updated"
+    },
+    {
+      "timestamp": "2026-06-26T11:25:53.963Z",
+      "feature": "dyna_io",
+      "phase": "do",
+      "action": "updated"
+    },
+    {
+      "timestamp": "2026-06-26T11:26:20.604Z",
+      "feature": "dyna_io",
+      "phase": "do",
+      "action": "updated"
+    },
+    {
+      "timestamp": "2026-06-26T11:26:38.273Z",
+      "feature": "dyna_io",
+      "phase": "do",
+      "action": "updated"
+    },
+    {
+      "timestamp": "2026-06-26T11:29:15.062Z",
+      "feature": "blender_core",
+      "phase": "do",
+      "action": "updated"
+    },
+    {
+      "timestamp": "2026-06-26T11:29:28.008Z",
+      "feature": "DigitalTwinSimulation",
+      "phase": "do",
+      "action": "updated"
+    },
+    {
+      "timestamp": "2026-06-26T11:30:32.417Z",
+      "feature": "dyna_io",
+      "phase": "do",
+      "action": "updated"
+    },
+    {
+      "timestamp": "2026-06-26T11:30:38.425Z",
+      "feature": "dyna_io",
+      "phase": "do",
+      "action": "updated"
+    },
+    {
+      "timestamp": "2026-06-26T11:31:23.153Z",
+      "feature": "tests",
+      "phase": "do",
+      "action": "updated"
+    },
+    {
+      "timestamp": "2026-06-26T11:31:40.794Z",
+      "feature": "tests",
+      "phase": "do",
+      "action": "updated"
+    },
+    {
+      "timestamp": "2026-06-26T11:31:53.236Z",
+      "feature": "tests",
+      "phase": "do",
+      "action": "updated"
+    },
+    {
+      "timestamp": "2026-06-26T11:32:13.826Z",
+      "feature": "tests",
+      "phase": "do",
+      "action": "updated"
+    },
+    {
+      "timestamp": "2026-06-26T11:39:16.679Z",
+      "feature": "blender_core",
+      "phase": "do",
+      "action": "updated"
+    },
+    {
+      "timestamp": "2026-06-26T11:41:47.052Z",
+      "feature": "hand",
+      "phase": "do",
+      "action": "updated"
+    },
+    {
+      "timestamp": "2026-06-26T11:41:58.833Z",
+      "feature": "dyna_io",
+      "phase": "do",
+      "action": "updated"
+    },
+    {
+      "timestamp": "2026-06-26T13:23:28.123Z",
+      "feature": "tests",
+      "phase": "do",
+      "action": "updated"
+    },
+    {
+      "timestamp": "2026-06-26T13:23:52.512Z",
+      "feature": "tests",
+      "phase": "do",
+      "action": "updated"
+    },
+    {
+      "timestamp": "2026-06-26T13:24:13.268Z",
+      "feature": "tests",
+      "phase": "do",
+      "action": "updated"
+    },
+    {
+      "timestamp": "2026-06-26T13:24:31.813Z",
+      "feature": "cli",
+      "phase": "do",
+      "action": "updated"
+    },
+    {
+      "timestamp": "2026-06-26T14:49:05.542Z",
+      "feature": "blender_core",
+      "phase": "do",
+      "action": "updated"
+    },
+    {
+      "timestamp": "2026-06-26T14:49:35.260Z",
+      "feature": "blender_core",
+      "phase": "do",
+      "action": "updated"
+    },
+    {
+      "timestamp": "2026-06-26T14:49:41.474Z",
+      "feature": "blender_core",
+      "phase": "do",
+      "action": "updated"
+    },
+    {
+      "timestamp": "2026-06-26T14:49:58.246Z",
+      "feature": "fixtures",
+      "phase": "do",
+      "action": "updated"
+    },
+    {
+      "timestamp": "2026-06-26T20:46:22.457Z",
+      "feature": "scratchpad",
+      "phase": "do",
+      "action": "updated"
+    },
+    {
+      "timestamp": "2026-06-26T21:07:29.022Z",
+      "feature": "blender_core",
+      "phase": "do",
+      "action": "updated"
+    },
+    {
+      "timestamp": "2026-06-26T21:30:45.375Z",
+      "feature": "cli",
+      "phase": "do",
+      "action": "updated"
+    },
+    {
+      "timestamp": "2026-06-26T21:42:35.045Z",
+      "feature": "scratchpad",
+      "phase": "do",
+      "action": "updated"
+    },
+    {
+      "timestamp": "2026-06-26T21:58:52.048Z",
+      "feature": "scratchpad",
+      "phase": "do",
+      "action": "updated"
+    },
+    {
+      "timestamp": "2026-06-26T22:07:42.356Z",
+      "feature": "scratchpad",
+      "phase": "do",
+      "action": "updated"
+    },
+    {
+      "timestamp": "2026-06-26T22:17:34.042Z",
+      "feature": "scratchpad",
+      "phase": "do",
+      "action": "updated"
+    },
+    {
+      "timestamp": "2026-06-26T22:18:38.845Z",
+      "feature": "scratchpad",
+      "phase": "do",
+      "action": "updated"
+    },
+    {
+      "timestamp": "2026-06-26T23:28:02.534Z",
+      "feature": "scratchpad",
+      "phase": "do",
+      "action": "updated"
+    },
+    {
+      "timestamp": "2026-06-26T23:31:31.259Z",
+      "feature": "scratchpad",
+      "phase": "do",
+      "action": "updated"
+    },
+    {
+      "timestamp": "2026-06-27T00:54:20.389Z",
+      "feature": "grip_variants",
+      "phase": "do",
+      "action": "updated"
+    },
+    {
+      "timestamp": "2026-06-27T00:54:45.915Z",
+      "feature": "grip_variants",
+      "phase": "do",
+      "action": "updated"
+    },
+    {
+      "timestamp": "2026-06-27T00:54:54.939Z",
+      "feature": "scratchpad",
+      "phase": "do",
+      "action": "updated"
+    },
+    {
+      "timestamp": "2026-06-27T00:55:15.824Z",
+      "feature": "scratchpad",
+      "phase": "do",
+      "action": "updated"
+    },
+    {
+      "timestamp": "2026-06-27T00:55:24.783Z",
+      "feature": "scratchpad",
+      "phase": "do",
+      "action": "updated"
+    },
+    {
+      "timestamp": "2026-06-27T01:08:53.388Z",
+      "feature": "grip_variants",
+      "phase": "do",
+      "action": "updated"
+    },
+    {
+      "timestamp": "2026-06-27T01:09:24.053Z",
+      "feature": "grip_variants",
+      "phase": "do",
+      "action": "updated"
+    },
+    {
+      "timestamp": "2026-06-27T03:44:14.494Z",
+      "feature": "scratchpad",
+      "phase": "do",
+      "action": "updated"
+    },
+    {
+      "timestamp": "2026-06-27T03:45:24.547Z",
+      "feature": "grip_variants",
+      "phase": "do",
+      "action": "updated"
+    },
+    {
+      "timestamp": "2026-06-27T03:46:28.744Z",
+      "feature": "grip_variants",
+      "phase": "do",
+      "action": "updated"
+    },
+    {
+      "timestamp": "2026-06-27T03:46:49.973Z",
+      "feature": "grip_variants",
+      "phase": "do",
+      "action": "updated"
+    },
+    {
+      "timestamp": "2026-06-27T03:47:15.045Z",
+      "feature": "grip_variants",
+      "phase": "do",
+      "action": "updated"
+    }
+  ]
+}

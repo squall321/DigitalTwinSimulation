@@ -1,0 +1,24 @@
+[project]
+name = "digital-twin-simulation"
+version = "0.1.0"
+description = "LS-DYNA .k → STL 외곽 추출 → 손 그립 포즈 → 폰 외곽 모핑 → 솔리드 .k 자동화"
+requires-python = ">=3.10"
+dependencies = [
+    "numpy>=1.24",
+    "scipy>=1.10",
+]
+
+[project.optional-dependencies]
+dev = ["pytest>=7"]
+mcp = ["mcp>=1.2", "pydantic>=2"]
+
+[build-system]
+requires = ["setuptools>=61"]
+build-backend = "setuptools.build_meta"
+
+[tool.setuptools.packages.find]
+where = ["src"]
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+pythonpath = ["src"]
