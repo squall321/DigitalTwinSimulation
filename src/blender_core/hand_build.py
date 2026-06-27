@@ -27,24 +27,30 @@ def _new_armature(name="HandRig"):
 
 
 def _build_bones(arm_data, handedness):
-    """손가락별 본 체인을 만들고 finger_chains 맵을 돌려준다."""
+    """루트(palm) 본 + 손가락별 본 체인을 만들고 finger_chains 맵을 돌려준다.
+    핵심: 손바닥을 palm 루트본에 묶어 손가락 회전 시 손바닥이 따라가지 않게 분리한다."""
     bpy.ops.object.mode_set(mode='EDIT')
     sign = 1.0 if handedness == "right" else -1.0
     chains = {}
     eb = arm_data.edit_bones
+    # 루트(palm) 본: 손바닥 중심을 가로지른다(y 0→47). finger_chains에는 넣지 않는다.
+    palm_bone = eb.new("palm")
+    palm_bone.head = Vector((0.0, 0.0, 0.0))
+    palm_bone.tail = Vector((0.0, 47.0, 0.0))
     for fname, (bx, by, seg_lens, _r) in FINGERS.items():
         chain = []
         y = by
         x = bx * sign
-        parent = None
+        parent = palm_bone
+        connect = False   # 루트와는 떨어져 있음(머리 위치 유지)
         for i, seglen in enumerate(seg_lens):
             bone = eb.new(f"{fname}_{JOINT_NAMES[i]}")
             bone.head = Vector((x, y, 0.0))
             bone.tail = Vector((x, y + seglen, 0.0))
-            if parent:
-                bone.parent = parent
-                bone.use_connect = True
+            bone.parent = parent
+            bone.use_connect = connect
             parent = bone
+            connect = True
             chain.append(bone.name)
             y += seglen
         chains[fname] = chain
@@ -86,7 +92,18 @@ def _build_finger_meshes(handedness):
 
 
 def _join_and_skin(meshes, arm_obj):
-    """메쉬들을 하나로 합치고 armature에 스킨 바인딩(자동 가중치)."""
+    """메쉬들을 합치고 armature에 강체 스키닝(메쉬별 본 vertex_group weight=1).
+    자동 가중치는 마디를 블렌딩해 분리돼 보였다 → 각 마디를 자기 본에 강체로 묶는다."""
+    # 합치기 전에 각 메쉬 정점이 어느 본에 속하는지 이름으로 매핑(강체).
+    seg_to_bone = {"Palm": "palm"}
+    for fname, (_bx, _by, seg_lens, _r) in FINGERS.items():
+        for i in range(len(seg_lens)):
+            seg_to_bone[f"{fname}_seg{i}"] = f"{fname}_{JOINT_NAMES[i]}"
+    for m in meshes:
+        bone = seg_to_bone[m.name]
+        vg = m.vertex_groups.new(name=bone)
+        vg.add(range(len(m.data.vertices)), 1.0, 'REPLACE')
+
     for o in bpy.context.selected_objects:
         o.select_set(False)
     for m in meshes:
@@ -95,16 +112,10 @@ def _join_and_skin(meshes, arm_obj):
     bpy.ops.object.join()
     hand = bpy.context.active_object
     hand.name = "Hand"
-    # armature 모디파이어 + 자동 가중치
-    arm_obj.select_set(True)
-    hand.select_set(True)
-    bpy.context.view_layer.objects.active = arm_obj
-    try:
-        bpy.ops.object.parent_set(type='ARMATURE_AUTO')
-    except RuntimeError:
-        # 자동 가중치 실패 시 단순 모디파이어만(가중치 0 → 후처리)
-        mod = hand.modifiers.new("Armature", 'ARMATURE')
-        mod.object = arm_obj
+    # armature 모디파이어만(위에서 만든 강체 가중치 사용)
+    mod = hand.modifiers.new("Armature", 'ARMATURE')
+    mod.object = arm_obj
+    hand.parent = arm_obj
     return hand
 
 

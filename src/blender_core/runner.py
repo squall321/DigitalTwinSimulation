@@ -66,32 +66,34 @@ def _grip_phone(params: dict) -> dict:
     # 1) 손 생성 (mm)
     hand_info = build_hand(handedness=handedness, unit_scale=1000.0)
     hand = bpy.data.objects[hand_info["object_name"]]
+    arm = bpy.data.objects[hand_info["armature_name"]]
 
     # 2) 폰 로드
     bpy.ops.wm.stl_import(filepath=phone_stl)
     phone = bpy.context.active_object
     phone.name = "Phone"
 
-    # 3) 위치맞춤: 손바닥 중심을 폰 중심에 정렬하고, 손바닥이 폰 뒷면에 닿게 z 배치.
-    #    손 local 좌표: 손바닥은 y≈[0,95], 손가락이 y+ 방향으로 뻗음. 손바닥 중심 ≈ (0, 47, 0).
+    # 3) 위치맞춤(승자 접근 A): 손바닥 윗면을 폰 뒷면에 붙이고, 손가락 뿌리가
+    #    폰 가까운 긴모서리를 넘어 앞면으로 말리게 한다.
+    #    손 local: 손바닥 두께 t=25 → 반두께 12.5, 손가락 뿌리 y≈90.
+    #    손은 armature의 자식 → armature만 이동(이중변환 방지).
     pbb = [phone.matrix_world @ Vector(c) for c in phone.bound_box]
     pmin = Vector((min(v.x for v in pbb), min(v.y for v in pbb), min(v.z for v in pbb)))
     pmax = Vector((max(v.x for v in pbb), max(v.y for v in pbb), max(v.z for v in pbb)))
     center = (pmin + pmax) * 0.5
-    palm_center_local = Vector((0.0, 47.0, 0.0))   # 손 local 손바닥 중심
-    # 손바닥 중심이 폰 중심으로 가도록 손을 평행이동. 손바닥은 폰 뒷면(z=pmin.z) 바로 아래.
-    hand.location = (
-        center.x - palm_center_local.x,
-        center.y - palm_center_local.y,
-        pmin.z - 12.0,   # 손바닥이 폰 뒷면 약간 아래 → 손가락이 앞면으로 말려 감싸게
+    half_t = 25.0 * 0.5            # PALM 두께 반(손바닥 윗면이 z=+half_t local)
+    arm.location = (
+        center.x,                 # x: 폰 중심
+        pmax.y - 90.0,            # y: 손가락 뿌리(y≈90)가 가까운 긴모서리(pmax.y)에
+        pmin.z - half_t,          # z: 손바닥 윗면이 폰 뒷면(pmin.z)에 닿게
     )
-    bpy.data.objects[hand_info["armature_name"]].location = hand.location
+    arm.rotation_euler = (0, 0, 0)
     bpy.context.view_layer.update()
 
     # 4) 그립 프리셋 적용
     grip_meta = grip_ops.apply_grip(hand_info, style=style)
 
-    # 5) shrinkwrap 1패스(관통 완화)
+    # 5) shrinkwrap 2패스(관통 완화 + 밀착, 승자 graft)
     grip_ops.shrinkwrap_fingers_to_phone(hand.name, phone.name)
     bpy.context.view_layer.update()
 
