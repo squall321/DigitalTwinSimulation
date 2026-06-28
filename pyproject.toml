@@ -12,6 +12,11 @@ dependencies = [
 dev = ["pytest>=7"]
 mcp = ["mcp>=1.2", "pydantic>=2"]
 
+[project.scripts]
+dts-mcp = "mcp_server.server:main"
+dts-pipeline = "cli.dtsim:main"
+dyna2stl = "cli.dyna2stl:main"
+
 [build-system]
 requires = ["setuptools>=61"]
 build-backend = "setuptools.build_meta"

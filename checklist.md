@@ -48,10 +48,12 @@
 - [ ] `dyna_io/rewrite.py`: *NODE 좌표만 패치, 나머지 원문 보존. **좌표의존 카드 경고**
 - [ ] 검증: 라운드트립(노드/요소 수 동일) + 좌표 오버플로 + (가능시) LS-DYNA init-check
 
-## 슬라이스 5 — CLI + GUI + MCP
-- [ ] `app/{pipeline,session,blender_io}.py`: run_steps + GripState(폰/손 병렬트랙) + run_headless
-- [ ] `blender_core` 소켓 애드온 (JSONL/길이프리픽스 프레이밍) → **Adapter 추출** (두 구현 실재)
-- [ ] `mcp_server/{server,schemas,hints}.py`: FastMCP **flat 인자**, enum 강제, 자가수정 hint
-- [ ] 7개 MCP 도구: extract_surface, inspect_k, load_hand, grip_phone, adjust_finger, morph_phone, export_solid_k
-- [ ] morph long-running → 워커스레드 오프로드 (async 루프 블록 방지)
-- [ ] 검증: end-to-end 1커맨드, CLI≡GUI, MCP inputSchema flat 확인, 자연어 시나리오 A/B
+## 슬라이스 5 — CLI + MCP ✅
+- [x] `app/{session,pipeline,blender_io}.py`: GripState(폰/손 병렬트랙) + 고수준 파이프라인 + run_headless
+- [x] `mcp_server/server.py`: FastMCP **flat 인자**, enum 강제, 자가수정 hint
+- [x] 6개 MCP 도구: extract_surface, inspect_k, load_hand, grip_phone, morph_phone, export_solid_k
+- [x] 통합 CLI `dts-pipeline` (end-to-end 1커맨드) + 콘솔 스크립트 등록
+- [x] README: MCP 클라이언트 연결법 + 자연어 시나리오
+- [x] 검증: end-to-end 1커맨드, MCP flat 스키마, 62 테스트 통과
+- [ ] (보류) GUI 소켓 애드온 → Adapter 추출. 두 번째 구현이 실제 필요할 때(YAGNI)
+- [ ] (보류) adjust_finger, morph 워커스레드 오프로드. 대화형 조정 필요 시
