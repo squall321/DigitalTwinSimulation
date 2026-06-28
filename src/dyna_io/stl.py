@@ -67,6 +67,41 @@ def _write_ascii(path, v, t, normals):
         f.write("\n".join(lines) + "\n")
 
 
+def read_stl_points(path):
+    """STL(binary/ascii)에서 고유 정점 좌표 (P,3)만 읽는다.
+
+    삼각형 연결성은 버리고 점 구름만 반환(모핑 경계 되투영용 cKDTree 입력).
+    binary/ascii 자동 판별: 헤더가 'solid'로 시작하고 'facet'을 포함하면 ascii.
+    """
+    with open(path, "rb") as f:
+        head = f.read(512)
+    is_ascii = head[:5].lower() == b"solid" and b"facet" in head.lower()
+
+    pts = []
+    if is_ascii:
+        with open(path, "r", errors="ignore") as f:
+            for line in f:
+                s = line.strip()
+                if s.startswith("vertex"):
+                    _, x, y, z = s.split()[:4]
+                    pts.append((float(x), float(y), float(z)))
+    else:
+        with open(path, "rb") as f:
+            f.read(80)
+            (n_tri,) = struct.unpack("<I", f.read(4))
+            for _ in range(n_tri):
+                data = f.read(50)
+                vals = struct.unpack("<12f", data[:48])
+                pts.append((vals[3], vals[4], vals[5]))
+                pts.append((vals[6], vals[7], vals[8]))
+                pts.append((vals[9], vals[10], vals[11]))
+
+    arr = np.asarray(pts, dtype=np.float64).reshape(-1, 3)
+    if len(arr) == 0:
+        return arr
+    return np.unique(arr, axis=0)
+
+
 def watertight_diag(tris):
     """삼각형 표면의 닫힘성 진단.
 

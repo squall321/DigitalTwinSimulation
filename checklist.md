@@ -33,10 +33,12 @@
 - [ ] `blender_core/{dispatch,hand_ops,io_ops,runner}.py` (bpy 전용, headless)
 - [ ] 검증: load_hand→본회전→export STL. **단위 1000배 mm 정규화 확인**
 
-## 슬라이스 3 — 그립 포즈
-- [ ] `blender_core/grip_ops.py`: **blendshape 프리셋 + shrinkwrap 1패스** (자동수렴 IK 아님)
-- [ ] `blender_core/contact_ops.py`: penetration 측정 (bvhtree)
-- [ ] 검증: 폰 외곽 로드 → 그립 → penetration 리포트 → **phone_edited_outer.stl 산출**
+## 슬라이스 3 — 그립 포즈 ✅
+- [x] `blender_core/grip_ops.py`: 프리셋(손가락별 차등 굴곡)+엄지 대향 + 2패스 shrinkwrap
+- [x] `blender_core/hand_build.py`: palm 루트본 분리 + 강체 스키닝(마디 부유 해결)
+- [x] penetration 측정 (bvhtree) — 한계: 접촉 면적 미측정(추후)
+- [x] 검증: 폰 로드 → 그립 → C자 감쌈 렌더 확인 → phone_edited_outer.stl 산출. 48 테스트 통과
+- [x] **멀티에이전트 시각루프**(3접근 worktree → 심판 → 승자 A 적용)
 
 ## 슬라이스 4 — 폰 외곽 모핑 (내부 스무싱)
 - [ ] `morph/laplacian.py`: build_laplacian + morph_laplacian (**변위장 조화확장**, 좌표 아님)
