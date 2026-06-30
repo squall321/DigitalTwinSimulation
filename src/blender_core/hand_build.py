@@ -59,33 +59,61 @@ def _build_bones(arm_data, handedness):
 
 
 def _build_palm_mesh():
-    """손바닥 박스 메쉬."""
+    """손바닥 메쉬. cube에 bevel로 모서리를 둥글려 사람 손바닥에 가깝게."""
     w, l, t = PALM_SIZE
     bpy.ops.mesh.primitive_cube_add(size=1.0, location=(0, l * 0.5 - 0.01, 0))
     palm = bpy.context.active_object
     palm.scale = (w * 0.5, l * 0.5, t * 0.5)
     bpy.ops.object.transform_apply(scale=True)
     palm.name = "Palm"
+    # 모서리 bevel(둥근 손바닥). segments=2로 부드럽게.
+    bev = palm.modifiers.new("Bevel", 'BEVEL')
+    bev.width = min(w, l, t) * 0.18
+    bev.segments = 2
+    bev.limit_method = 'NONE'
+    bpy.context.view_layer.objects.active = palm
+    bpy.ops.object.modifier_apply(modifier="Bevel")
+    for poly in palm.data.polygons:
+        poly.use_smooth = True
     return palm
 
 
 def _build_finger_meshes(handedness):
-    """손가락별 실린더 마디 메쉬 리스트."""
+    """손가락별 마디 메쉬. 실린더 양끝을 둥글린 캡슐형 + 손끝 반구로 사람 손가락에 가깝게."""
     sign = 1.0 if handedness == "right" else -1.0
     objs = []
     for fname, (bx, by, seg_lens, r) in FINGERS.items():
         y = by
         x = bx * sign
+        n_seg = len(seg_lens)
         for i, seglen in enumerate(seg_lens):
+            is_tip = (i == n_seg - 1)
+            # 마디를 약간 길게(겹침) 만들어 관절 사이 갭 없이 연결되게(과하면 관통 유발 → 1.05).
+            depth = seglen * (1.0 if is_tip else 1.05)
             bpy.ops.mesh.primitive_cylinder_add(
-                radius=r, depth=seglen, vertices=12,
+                radius=r, depth=depth, vertices=16,
                 location=(x, y + seglen * 0.5, 0.0),
+                end_fill_type='TRIFAN',
             )
             seg = bpy.context.active_object
-            # 실린더 축(Z)을 손가락 방향(Y)으로 회전
             seg.rotation_euler = (1.5707963, 0.0, 0.0)
             bpy.ops.object.transform_apply(rotation=True)
+            # 양 끝 정점을 살짝 안으로 모아(둥근 캡), 손끝은 더 둥글게.
+            ys = [v.co.y for v in seg.data.vertices]
+            ymin, ymax = min(ys), max(ys)
+            for v in seg.data.vertices:
+                if abs(v.co.y - ymax) < 1e-4:                       # 끝(원위)
+                    sc = 0.5 if is_tip else 0.72
+                    v.co.x *= sc
+                    v.co.z *= sc
+                    if is_tip:
+                        v.co.y += r * 0.5                            # 손끝 살짝 돌출(반구 느낌)
+                elif abs(v.co.y - ymin) < 1e-4:                     # 뿌리(근위)
+                    v.co.x *= 0.85
+                    v.co.z *= 0.85
             seg.name = f"{fname}_seg{i}"
+            for poly in seg.data.polygons:
+                poly.use_smooth = True
             objs.append(seg)
             y += seglen
     return objs
@@ -112,7 +140,15 @@ def _join_and_skin(meshes, arm_obj):
     bpy.ops.object.join()
     hand = bpy.context.active_object
     hand.name = "Hand"
-    # armature 모디파이어만(위에서 만든 강체 가중치 사용)
+    # 가벼운 스무딩: 인접 정점 거리 기반 merge로 마디 접합부 정리(겹친 캡 통합).
+    bpy.context.view_layer.objects.active = hand
+    bpy.ops.object.mode_set(mode='EDIT')
+    bpy.ops.mesh.select_all(action='SELECT')
+    bpy.ops.mesh.remove_doubles(threshold=0.5)   # 0.5mm 이내 정점 병합
+    bpy.ops.object.mode_set(mode='OBJECT')
+    for poly in hand.data.polygons:
+        poly.use_smooth = True
+    # armature 모디파이어(강체 가중치). subdivision은 표면만 매끈하게 1단계(FEM 정점수 절제).
     mod = hand.modifiers.new("Armature", 'ARMATURE')
     mod.object = arm_obj
     hand.parent = arm_obj

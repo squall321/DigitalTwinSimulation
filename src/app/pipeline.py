@@ -16,8 +16,9 @@ def extract_surface(state: GripState, k_file: str, parts=None,
     """폰 .k → 외곽 STL + 원본 보존(슬라이스1)."""
     mesh = parse_k_file(k_file)
     tris, used, diag = build_surface(mesh, parts=parts, merge_shells=merge_shells)
-    X, nid2row, row2nid = mesh.dense_index()
-    verts = [tuple(X[nid2row[n]]) for n in row2nid]
+    # tris는 build_surface의 used 인덱싱을 가리킨다 → verts도 반드시 used 순서로.
+    # (dense_index의 row2nid는 순서가 달라 인덱스가 어긋나 sliver 삼각형이 생긴다.)
+    verts = [tuple(mesh.nodes[nid]) for nid in used]
 
     out_stl = str(Path(state.workdir) / "phone_outer.stl")
     write_stl(out_stl, verts, tris, binary=True)
