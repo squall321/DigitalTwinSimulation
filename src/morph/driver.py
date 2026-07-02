@@ -54,7 +54,8 @@ def morph_phone_volume(mesh, edited_outer_stl, method="laplacian", scale=1.0,
       diagnostics={min_jacobian, aspect_max, n_boundary_nodes, n_internal_nodes, ...}.
       실패 시 fail(min_jacobian=..., inverted=[...]) + message에 축소 hint.
     """
-    X0, nid2row, row2nid = mesh.dense_index()
+    # 모핑은 체적(솔리드) 메쉬만 대상. 셸 전용 노드를 포함하면 Laplacian이 특이행렬이 된다.
+    X0, nid2row, row2nid = mesh.dense_index(solids_only=True)
     n = X0.shape[0]
 
     free, _diag = extract_free_faces(mesh.solids, mesh.nodes)

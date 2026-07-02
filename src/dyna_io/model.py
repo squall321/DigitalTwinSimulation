@@ -40,8 +40,12 @@ class MeshData:
     parts: dict = field(default_factory=dict)
     src_path: str = ""
 
-    def dense_index(self):
+    def dense_index(self, solids_only=False):
         """요소가 참조하는 노드만 모아 dense 배열로. 고립 노드는 제외.
+
+        solids_only=True면 솔리드 요소가 참조하는 노드만 담는다. 모핑은 체적(솔리드)
+        메쉬만 대상이며, 셸 전용 노드를 포함하면 Laplacian 그래프에서 고립되어
+        특이행렬이 된다(혼합 메쉬 실측 버그).
 
         returns (X(N,3) float64, nid2row dict, row2nid list).
         """
@@ -52,11 +56,12 @@ class MeshData:
                 if nid not in seen:
                     seen.add(nid)
                     referenced.append(nid)
-        for el in self.shells:
-            for nid in dict.fromkeys(el.node_ids):
-                if nid not in seen:
-                    seen.add(nid)
-                    referenced.append(nid)
+        if not solids_only:
+            for el in self.shells:
+                for nid in dict.fromkeys(el.node_ids):
+                    if nid not in seen:
+                        seen.add(nid)
+                        referenced.append(nid)
         row2nid = referenced
         nid2row = {nid: i for i, nid in enumerate(row2nid)}
         X = np.array([self.nodes[nid] for nid in row2nid], dtype=np.float64).reshape(-1, 3)
