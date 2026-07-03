@@ -107,8 +107,19 @@ def apply_grip(hand_info: dict, style: str = "natural") -> dict:
     return {"style": style, "preset": preset}
 
 
-def measure_penetration(hand_name: str, phone_name: str) -> dict:
-    """손과 폰 표면의 관통량을 BVH로 측정. 관통 = 손 정점이 폰 내부에 있는 깊이."""
+def measure_penetration(hand_name: str, phone_name: str, contact_tol: float = 3.0) -> dict:
+    """손과 폰의 접촉/관통을 BVH로 측정.
+
+    관통(penetration): 손 정점이 폰 내부에 있는 깊이(shrinkwrap OUTSIDE면 보통 0).
+    접촉(contact): 손 정점이 폰 표면에서 contact_tol(mm) 이내에 있는 정도. shrinkwrap이
+      표면 바깥에 앉히므로 "관통 0"이어도 접촉은 있다 → 그립 밀착도의 실제 지표.
+
+    반환:
+      max_penetration, penetrating_verts (기존 호환),
+      contact_verts: 접촉 정점 수,
+      contact_ratio: 접촉 정점 / 전체 손 정점 (0~1, 그립 밀착도),
+      mean_gap: 접촉 정점들의 평균 표면 거리(mm, 작을수록 밀착).
+    """
     from mathutils.bvhtree import BVHTree
     hand = bpy.data.objects[hand_name]
     phone = bpy.data.objects[phone_name]
@@ -117,26 +128,46 @@ def measure_penetration(hand_name: str, phone_name: str) -> dict:
     hand_eval = hand.evaluated_get(deps)
     hand_mesh = hand_eval.to_mesh()
 
-    phone_eval = phone.evaluated_get(deps)
     phone_bvh = BVHTree.FromObject(phone, deps)
 
     mw = hand.matrix_world
     pinv = phone.matrix_world.inverted()
     max_pen = 0.0
     n_pen = 0
+    n_contact = 0
+    gap_sum = 0.0
+    min_gap = float("inf")
+    n_total = len(hand_mesh.vertices)
     for v in hand_mesh.vertices:
         wco = mw @ v.co
         local = pinv @ wco
-        # ray casting으로 내부 판정(아래 방향 레이가 홀수번 교차하면 내부)
         loc, nor, idx, dist = phone_bvh.find_nearest(local)
         if loc is not None:
             d = (Vector(local) - Vector(loc)).length
-            # 법선과 반대면 내부(관통)
-            if (Vector(local) - Vector(loc)).dot(nor) < 0:
+            min_gap = min(min_gap, d)
+            if (Vector(local) - Vector(loc)).dot(nor) < 0:      # 폰 내부(관통)
                 max_pen = max(max_pen, d)
                 n_pen += 1
+            if d <= contact_tol:                                 # 표면 근처(접촉)
+                n_contact += 1
+                gap_sum += d
     hand_eval.to_mesh_clear()
-    return {"max_penetration": round(max_pen, 4), "penetrating_verts": n_pen}
+
+    result = {
+        "max_penetration": round(max_pen, 4),
+        "penetrating_verts": n_pen,
+        "contact_verts": n_contact,
+        "contact_ratio": round(n_contact / n_total, 4) if n_total else 0.0,
+        "mean_gap": round(gap_sum / n_contact, 4) if n_contact else 0.0,
+        "min_gap": round(min_gap, 4) if min_gap != float("inf") else None,
+    }
+    # 정직한 진단: 접촉이 거의 없으면 그립이 밀착되지 않은 것(shrinkwrap 부족/손·폰 크기 불일치).
+    if n_contact < n_total * 0.02:
+        result["contact_warning"] = (
+            f"손-폰 접촉 미약(접촉정점 {n_contact}, 최소갭 {result['min_gap']}mm). "
+            "그립이 표면에 밀착되지 않음 — shrinkwrap offset을 줄이거나 손 크기/위치를 조정하세요."
+        )
+    return result
 
 
 def shrinkwrap_fingers_to_phone(hand_name: str, phone_name: str, offsets=(1.5, 0.8)) -> dict:
