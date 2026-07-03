@@ -1,0 +1,7 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(.venv/bin/pytest tests/test_rbf_rotation.py -v)"
+    ]
+  }
+}
