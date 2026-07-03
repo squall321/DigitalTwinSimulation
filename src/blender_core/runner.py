@@ -31,12 +31,78 @@ def _run(cmd: dict) -> dict:
             _export_object_stl(info["object_name"], out)
             info["stl_path"] = out
             info["stl_bytes"] = os.path.getsize(out)
+        obj_out = params.get("export_obj")
+        if obj_out:
+            _export_object_obj(info["object_name"], obj_out)
+            info["obj_path"] = obj_out
         return {"ok": True, "result": info}
+
+    if op == "bake_hand_asset":
+        # 절차적 손을 OBJ 에셋으로 베이크(사실적 에셋 임포트 경로 검증용).
+        from blender_core.hand_build import build_hand
+        info = build_hand(handedness=params.get("handedness", "right"),
+                          unit_scale=params.get("unit_scale", 1.0))
+        _export_object_obj(info["object_name"], params["out_obj"])
+        info["obj_path"] = params["out_obj"]
+        info["obj_bytes"] = os.path.getsize(params["out_obj"])
+        return {"ok": True, "result": info}
+
+    if op == "import_hand_obj":
+        return _import_hand_obj(params)
 
     if op == "grip_phone":
         return _grip_phone(params)
 
     return {"ok": False, "error": f"unknown op: {op}"}
+
+
+def _import_hand_obj(params: dict) -> dict:
+    """OBJ 손 에셋을 임포트한다. armature가 함께 있으면 그 본으로 finger_chains를
+    추론하고, 없으면 메쉬만 로드(그립하려면 절차 스켈레톤 필요 → 진단으로 알림)."""
+    import os
+    asset = params["asset_path"]
+    if not os.path.exists(asset):
+        return {"ok": False, "error": f"에셋 없음: {asset}"}
+    before = set(bpy.data.objects.keys())
+    bpy.ops.wm.obj_import(filepath=asset)
+    new = [n for n in bpy.data.objects.keys() if n not in before]
+    meshes = [bpy.data.objects[n] for n in new if bpy.data.objects[n].type == 'MESH']
+    arms = [bpy.data.objects[n] for n in new if bpy.data.objects[n].type == 'ARMATURE']
+    if not meshes:
+        return {"ok": False, "error": "임포트된 메쉬 없음"}
+    hand = meshes[0]
+    hand.name = "Hand"
+
+    # 본 체인: 임포트 armature가 있으면 이름으로 추론, 없으면 빈 dict(그립 불가 경고).
+    finger_chains = {}
+    arm_name = ""
+    if arms:
+        arm = arms[0]
+        arm_name = arm.name
+        for finger in ("thumb", "index", "middle", "ring", "pinky"):
+            chain = [b.name for b in arm.data.bones
+                     if b.name.lower().startswith(finger)]
+            if chain:
+                finger_chains[finger] = chain
+
+    info = {
+        "object_name": hand.name,
+        "armature_name": arm_name,
+        "finger_chains": finger_chains,
+        "blendshapes": {},
+        "handedness": params.get("handedness", "right"),
+        "unit_scale": 1.0,
+        "vert_count": len(hand.data.vertices),
+        "has_rig": bool(arms),
+    }
+    if not arms:
+        info["warning"] = ("에셋에 armature 없음 → 그립 불가. 절차 스켈레톤에 "
+                           "바인딩하거나 리깅된 에셋을 사용하세요.")
+    out = params.get("export_stl")
+    if out:
+        _export_object_stl(hand.name, out)
+        info["stl_path"] = out
+    return {"ok": True, "result": info}
 
 
 def _export_object_stl(obj_name: str, out_path: str):
@@ -47,6 +113,18 @@ def _export_object_stl(obj_name: str, out_path: str):
     obj.select_set(True)
     bpy.context.view_layer.objects.active = obj
     bpy.ops.wm.stl_export(
+        filepath=out_path, export_selected_objects=True, apply_modifiers=True
+    )
+
+
+def _export_object_obj(obj_name: str, out_path: str):
+    """단일 객체를 OBJ 에셋으로 익스포트(모디파이어 적용). 손 에셋 베이크용."""
+    obj = bpy.data.objects[obj_name]
+    for o in bpy.context.selected_objects:
+        o.select_set(False)
+    obj.select_set(True)
+    bpy.context.view_layer.objects.active = obj
+    bpy.ops.wm.obj_export(
         filepath=out_path, export_selected_objects=True, apply_modifiers=True
     )
 
