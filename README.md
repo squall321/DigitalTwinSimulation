@@ -47,17 +47,25 @@ python3.13 -m venv .venv
 .venv/bin/dts-mcp        # stdio MCP 서버 기동
 ```
 
-Claude Desktop 등 MCP 클라이언트 설정 예:
+Claude Desktop 등 MCP 클라이언트 설정 예 (실제 stdio 연결 검증됨):
 
 ```json
 {
   "mcpServers": {
     "digital-twin": {
-      "command": "/home/koopark/claude/DigitalTwinSimulation/.venv/bin/dts-mcp"
+      "command": "/home/koopark/claude/DigitalTwinSimulation/.venv/bin/dts-mcp",
+      "env": {
+        "DTS_SESSION_DIR": "/tmp/dts_sessions",
+        "DTS_BLENDER_BIN": "/snap/bin/blender"
+      }
     }
   }
 }
 ```
+
+MCP 클라이언트가 붙으면 위 7개 도구가 노출되고, 자연어 지시("이 폰 오른손으로
+쥐고 솔리드 뽑아줘")가 `extract_surface → load_hand → grip_phone → morph_phone →
+export_solid_k` 시퀀스로 실행된다. stdio 프로토콜 전체 왕복은 `tests/test_mcp_client.py`로 검증.
 
 ### 도구 (7개, flat 인자)
 
