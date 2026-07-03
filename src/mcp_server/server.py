@@ -17,6 +17,9 @@ mcp = FastMCP("digital-twin-simulation")
 class GripStyle(str, Enum):
     natural = "natural"
     tight = "tight"
+    pinch = "pinch"
+    edge_hold = "edge_hold"
+    loose = "loose"
 
 
 class Handedness(str, Enum):
