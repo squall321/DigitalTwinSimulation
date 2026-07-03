@@ -45,3 +45,35 @@ def run_headless(cmd: dict, workdir: str = None, timeout: int = 180) -> dict:
             f"stderr 마지막:\n{proc.stderr[-2000:]}"
         )
     return json.loads(result_path.read_text())
+
+
+# --- Adapter 두 번째 백엔드: 상주 GUI Blender 소켓 채널 ---
+# run_headless와 동일한 (cmd dict) -> (result dict) 계약. 실시간 조정용.
+_SOCKET_HOST = "127.0.0.1"
+_SOCKET_PORT = 47800
+
+
+def run_socket(cmd: dict, workdir: str = None, timeout: int = 180,
+               host: str = _SOCKET_HOST, port: int = _SOCKET_PORT) -> dict:
+    """상주 Blender 소켓 서버에 JSONL 명령을 보내고 결과를 받는다.
+
+    run_headless와 시그니처/반환이 동일 → 호출부는 백엔드를 몰라도 된다(Adapter).
+    소켓 서버(blender_core/socket_addon.py)가 GUI Blender 안에서 떠 있어야 한다.
+    """
+    import socket
+
+    with socket.create_connection((host, port), timeout=timeout) as s:
+        s.sendall((json.dumps(cmd) + "\n").encode())
+        buf = b""
+        while b"\n" not in buf:
+            data = s.recv(4096)
+            if not data:
+                break
+            buf += data
+    line = buf.split(b"\n", 1)[0]
+    return json.loads(line.decode())
+
+
+def get_backend(mode: str = "headless"):
+    """실행 모드에 맞는 백엔드 함수를 반환. Adapter 선택 지점(if 한 줄)."""
+    return run_socket if mode == "socket" else run_headless
