@@ -128,6 +128,32 @@ def morph_phone(state: GripState, method="laplacian", scale=1.0,
     )
 
 
+def edit_formfactor(state: GripState, op: str, **params) -> StageResult:
+    """폰 외곽을 파라메트릭 편집해 모핑 입력(phone_edited_outer)을 만든다.
+
+    op: "scale_thickness"(factor), "round_corners"(radius), "dent"(center,radius,depth).
+    그립 대신(또는 그립과 별개로) 사용자가 폼팩터를 직접 바꾸는 경로.
+    """
+    from morph import edit
+
+    src = state.artifacts.get("phone_outer")
+    if not src:
+        return StageResult.fail("먼저 extract_surface로 폰 외곽을 만드세요.")
+    out = str(Path(state.workdir) / "phone_edited_outer.stl")
+    fn = {"scale_thickness": edit.scale_thickness,
+          "round_corners": edit.round_corners,
+          "dent": edit.dent}.get(op)
+    if fn is None:
+        return StageResult.fail(f"알 수 없는 편집: {op}. "
+                                "scale_thickness/round_corners/dent 중 하나.")
+    meta = fn(src, out, **params)
+    state.artifacts["phone_edited_outer"] = out
+    state.save()
+    return StageResult.success(message=f"폼팩터 편집 완료({op}).",
+                               artifacts={"phone_edited_outer": out},
+                               diagnostics=meta)
+
+
 def export_solid_k(state: GripState, out_path=None) -> StageResult:
     """모핑된 .k를 지정 경로로 내보냄(슬라이스4 산출)."""
     src = state.artifacts.get("phone_morphed_k")

@@ -89,6 +89,31 @@ def grip_phone(session_id: str = "default",
     return _result_dict(state, res)
 
 
+class EditOp(str, Enum):
+    scale_thickness = "scale_thickness"
+    round_corners = "round_corners"
+    dent = "dent"
+
+
+@mcp.tool()
+def edit_formfactor(session_id: str = "default",
+                    op: EditOp = EditOp.scale_thickness,
+                    factor: float = 1.0,
+                    radius: float = 5.0,
+                    depth: float = 1.0,
+                    center_x: float = 0.0,
+                    center_y: float = 0.0) -> dict:
+    """폰 폼팩터를 파라메트릭 편집해 모핑 입력을 만든다. 그립 대신 직접 형상 변경.
+    op=scale_thickness는 factor(두께 배율), round_corners는 radius(모서리 R),
+    dent는 center_x/center_y/radius/depth(국소 함몰). extract_surface 다음에 호출."""
+    state = _session(session_id)
+    kw = {"scale_thickness": {"factor": factor},
+          "round_corners": {"radius": radius},
+          "dent": {"center": (center_x, center_y), "radius": radius, "depth": depth}}[op.value]
+    res = pipeline.edit_formfactor(state, op.value, **kw)
+    return _result_dict(state, res)
+
+
 @mcp.tool()
 def morph_phone(session_id: str = "default",
                 method: MorphMethod = MorphMethod.laplacian,
