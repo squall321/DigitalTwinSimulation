@@ -1,7 +1,8 @@
 {
   "permissions": {
     "allow": [
-      "Bash(.venv/bin/pytest tests/test_rbf_rotation.py -v)"
+      "Bash(.venv/bin/pytest tests/test_rbf_rotation.py -v)",
+      "Bash(.venv/bin/pytest tests/test_coord_card_warning.py -v)"
     ]
   }
 }
