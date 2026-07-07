@@ -1,163 +1,148 @@
-# Blender API로 리깅된 손(손바닥+5손가락 3관절)을 절차적 생성. bpy 전용.
-# 외부 에셋/라이선스 없이 코드로 손을 만들어 완전 포터블하게 한다.
+# Blender Skin 모디파이어로 매끄러운 유기적 손(손바닥+5손가락)을 절차적 생성. bpy 전용.
+# 외부 에셋/라이선스 없이 코드로 만들어 완전 포터블. 마디 뼈대(정점+엣지)에 skin+subsurf로
+# 연속적인 손가락을 만들고, 관절 위치에 named 본을 두어 자동가중치로 바인딩한다.
+import bmesh
 import bpy
 from mathutils import Vector
 
-# 손 해부학 정의 (오른손 기준, 단위 mm — 폰(.k 좌표)이 mm 스케일이라 직접 정렬).
-# 각 손가락: (뿌리 x위치, 뿌리 y위치, [근위/중위/원위 마디 길이], 굵기)
-# 엄지는 손바닥 측면에서 비스듬히 난다.
+# 손 해부학 정의 (오른손 기준, mm — 폰 .k 좌표가 mm라 직접 정렬).
+# 척추: 손목 → 손바닥하부 → 너클베이스. 손바닥은 넓은 반경으로 벌크를 만든다.
+WRIST = (0.0, -28.0, 0.0, 15.0)
+PALM_LOW = (0.0, 10.0, 0.0, 22.0)
+PALM_TOP = (0.0, 50.0, 0.0, 24.0)
+
+# 각 손가락 4관절: (x, y, z, skin반경). 첫 관절=너클, 마지막=손끝.
 FINGERS = {
-    # name:     base_x, base_y, segs(len*3),        radius
-    "thumb":  (-35.0,  20.0, [30.0, 25.0, 20.0],   11.0),
-    "index":  (-18.0,  90.0, [40.0, 26.0, 20.0],    9.0),
-    "middle": (  0.0,  95.0, [45.0, 28.0, 22.0],    9.0),
-    "ring":   ( 18.0,  90.0, [40.0, 26.0, 20.0],    9.0),
-    "pinky":  ( 34.0,  80.0, [30.0, 20.0, 16.0],    8.0),
+    "index":  [(-22, 62, 0, 8.5), (-22, 100, 0, 7.5), (-22, 126, -3, 6.0), (-22, 146, -6, 4.3)],
+    "middle": [(-2, 64, 0, 9.0), (-2, 108, 0, 8.0), (-2, 137, -3, 6.5), (-2, 160, -6, 4.5)],
+    "ring":   [(18, 62, 0, 8.5), (18, 100, 0, 7.5), (18, 126, -3, 6.0), (18, 146, -6, 4.3)],
+    "pinky":  [(34, 56, 0, 7.5), (34, 84, 0, 6.5), (34, 104, -3, 5.0), (34, 120, -6, 3.6)],
 }
-PALM_SIZE = (90.0, 95.0, 25.0)       # 폭, 길이, 두께 (mm)
+# 엄지: 손바닥 하부 측면에서 나와 가로지르며 마주본다.
+THUMB = [(-26, 2, 6, 11.0), (-44, 16, 11, 8.5), (-56, 32, 14, 6.0), (-64, 48, 14, 4.3)]
+
 JOINT_NAMES = ["01", "02", "03"]     # 근위/중위/원위
 
 
-def _new_armature(name="HandRig"):
-    arm_data = bpy.data.armatures.new(name)
-    arm_obj = bpy.data.objects.new(name, arm_data)
-    bpy.context.collection.objects.link(arm_obj)
-    bpy.context.view_layer.objects.active = arm_obj
-    return arm_obj, arm_data
+def _mirror(pt, sign):
+    """x를 handedness 부호로 반전(왼손 처리). pt=(x,y,z,...)."""
+    return (pt[0] * sign,) + tuple(pt[1:])
 
 
-def _build_bones(arm_data, handedness):
-    """루트(palm) 본 + 손가락별 본 체인을 만들고 finger_chains 맵을 돌려준다.
-    핵심: 손바닥을 palm 루트본에 묶어 손가락 회전 시 손바닥이 따라가지 않게 분리한다."""
+def _build_skin_mesh(handedness):
+    """마디 뼈대에 Skin+Subsurf로 연속적 손 메쉬를 만든다(모디파이어 적용 후 반환)."""
+    sign = 1.0 if handedness == "right" else -1.0
+    mesh = bpy.data.meshes.new("Hand")
+    obj = bpy.data.objects.new("Hand", mesh)
+    bpy.context.collection.objects.link(obj)
+    bm = bmesh.new()
+
+    wrist = _mirror(WRIST, sign)
+    palm_low = _mirror(PALM_LOW, sign)
+    palm_top = _mirror(PALM_TOP, sign)
+
+    def add(pt):
+        return bm.verts.new(pt[:3])
+
+    vw, vl, vt = add(wrist), add(palm_low), add(palm_top)
+    bm.edges.new([vw, vl])
+    bm.edges.new([vl, vt])
+
+    radius_by_co = {}
+
+    def record(pt):
+        radius_by_co[tuple(round(c, 1) for c in pt[:3])] = pt[3]
+
+    for pt in (wrist, palm_low, palm_top):
+        record(pt)
+
+    # 손가락: 너클베이스(palm_top)에서 분기
+    for chain in FINGERS.values():
+        prev = vt
+        for raw in chain:
+            pt = _mirror(raw, sign)
+            v = add(pt)
+            bm.edges.new([prev, v])
+            record(pt)
+            prev = v
+    # 엄지: 손바닥 하부에서 분기
+    prev = vl
+    for raw in THUMB:
+        pt = _mirror(raw, sign)
+        v = add(pt)
+        bm.edges.new([prev, v])
+        record(pt)
+        prev = v
+
+    bm.to_mesh(mesh)
+    bm.free()
+
+    obj.modifiers.new("Skin", 'SKIN')
+    sl = mesh.skin_vertices[0].data
+    for i, v in enumerate(mesh.vertices):
+        r = radius_by_co.get(tuple(round(c, 1) for c in v.co), 7.0)
+        sl[i].radius = (r, r)
+    sl[0].use_root = True
+    obj.modifiers.new("Sub", 'SUBSURF').levels = 2
+
+    bpy.context.view_layer.objects.active = obj
+    bpy.ops.object.modifier_apply(modifier="Skin")
+    bpy.ops.object.modifier_apply(modifier="Sub")
+    for p in mesh.polygons:
+        p.use_smooth = True
+    return obj
+
+
+def _build_armature(handedness):
+    """관절 위치에 named 본을 두고 finger_chains를 반환한다."""
+    sign = 1.0 if handedness == "right" else -1.0
+    arm_data = bpy.data.armatures.new("HandRig")
+    arm = bpy.data.objects.new("HandRig", arm_data)
+    bpy.context.collection.objects.link(arm)
+    bpy.context.view_layer.objects.active = arm
     bpy.ops.object.mode_set(mode='EDIT')
-    sign = 1.0 if handedness == "right" else -1.0
-    chains = {}
     eb = arm_data.edit_bones
-    # 루트(palm) 본: 손바닥 중심을 가로지른다(y 0→47). finger_chains에는 넣지 않는다.
-    palm_bone = eb.new("palm")
-    palm_bone.head = Vector((0.0, 0.0, 0.0))
-    palm_bone.tail = Vector((0.0, 47.0, 0.0))
-    for fname, (bx, by, seg_lens, _r) in FINGERS.items():
-        chain = []
-        y = by
-        x = bx * sign
-        parent = palm_bone
-        connect = False   # 루트와는 떨어져 있음(머리 위치 유지)
-        for i, seglen in enumerate(seg_lens):
-            bone = eb.new(f"{fname}_{JOINT_NAMES[i]}")
-            bone.head = Vector((x, y, 0.0))
-            bone.tail = Vector((x, y + seglen, 0.0))
-            bone.parent = parent
-            bone.use_connect = connect
-            parent = bone
+
+    palm = eb.new("palm")
+    palm.head = _mirror(WRIST, sign)[:3]
+    palm.tail = _mirror(PALM_TOP, sign)[:3]
+
+    chains = {}
+    for name, chain in list(FINGERS.items()) + [("thumb", THUMB)]:
+        bones = []
+        parent = palm
+        connect = False
+        for i in range(len(chain) - 1):
+            b = eb.new(f"{name}_{JOINT_NAMES[i]}")
+            b.head = _mirror(chain[i], sign)[:3]
+            b.tail = _mirror(chain[i + 1], sign)[:3]
+            b.parent = parent
+            b.use_connect = connect
+            parent = b
             connect = True
-            chain.append(bone.name)
-            y += seglen
-        chains[fname] = chain
+            bones.append(b.name)
+        chains[name] = bones
     bpy.ops.object.mode_set(mode='OBJECT')
-    return chains
+    return arm, chains
 
 
-def _build_palm_mesh():
-    """손바닥 메쉬. cube에 bevel로 모서리를 둥글려 사람 손바닥에 가깝게."""
-    w, l, t = PALM_SIZE
-    bpy.ops.mesh.primitive_cube_add(size=1.0, location=(0, l * 0.5 - 0.01, 0))
-    palm = bpy.context.active_object
-    palm.scale = (w * 0.5, l * 0.5, t * 0.5)
-    bpy.ops.object.transform_apply(scale=True)
-    palm.name = "Palm"
-    # 모서리 bevel(둥근 손바닥). segments=2로 부드럽게.
-    bev = palm.modifiers.new("Bevel", 'BEVEL')
-    bev.width = min(w, l, t) * 0.18
-    bev.segments = 2
-    bev.limit_method = 'NONE'
-    bpy.context.view_layer.objects.active = palm
-    bpy.ops.object.modifier_apply(modifier="Bevel")
-    for poly in palm.data.polygons:
-        poly.use_smooth = True
-    return palm
-
-
-def _build_finger_meshes(handedness):
-    """손가락별 마디 메쉬. 실린더 양끝을 둥글린 캡슐형 + 손끝 반구로 사람 손가락에 가깝게."""
-    sign = 1.0 if handedness == "right" else -1.0
-    objs = []
-    for fname, (bx, by, seg_lens, r) in FINGERS.items():
-        y = by
-        x = bx * sign
-        n_seg = len(seg_lens)
-        for i, seglen in enumerate(seg_lens):
-            is_tip = (i == n_seg - 1)
-            # 마디를 약간 길게(겹침) 만들어 관절 사이 갭 없이 연결되게(과하면 관통 유발 → 1.05).
-            depth = seglen * (1.0 if is_tip else 1.05)
-            bpy.ops.mesh.primitive_cylinder_add(
-                radius=r, depth=depth, vertices=16,
-                location=(x, y + seglen * 0.5, 0.0),
-                end_fill_type='TRIFAN',
-            )
-            seg = bpy.context.active_object
-            seg.rotation_euler = (1.5707963, 0.0, 0.0)
-            bpy.ops.object.transform_apply(rotation=True)
-            # 양 끝 정점을 살짝 안으로 모아(둥근 캡), 손끝은 더 둥글게.
-            ys = [v.co.y for v in seg.data.vertices]
-            ymin, ymax = min(ys), max(ys)
-            for v in seg.data.vertices:
-                if abs(v.co.y - ymax) < 1e-4:                       # 끝(원위)
-                    sc = 0.5 if is_tip else 0.72
-                    v.co.x *= sc
-                    v.co.z *= sc
-                    if is_tip:
-                        v.co.y += r * 0.5                            # 손끝 살짝 돌출(반구 느낌)
-                elif abs(v.co.y - ymin) < 1e-4:                     # 뿌리(근위)
-                    v.co.x *= 0.85
-                    v.co.z *= 0.85
-            seg.name = f"{fname}_seg{i}"
-            for poly in seg.data.polygons:
-                poly.use_smooth = True
-            objs.append(seg)
-            y += seglen
-    return objs
-
-
-def _join_and_skin(meshes, arm_obj):
-    """메쉬들을 합치고 armature에 강체 스키닝(메쉬별 본 vertex_group weight=1).
-    자동 가중치는 마디를 블렌딩해 분리돼 보였다 → 각 마디를 자기 본에 강체로 묶는다."""
-    # 합치기 전에 각 메쉬 정점이 어느 본에 속하는지 이름으로 매핑(강체).
-    seg_to_bone = {"Palm": "palm"}
-    for fname, (_bx, _by, seg_lens, _r) in FINGERS.items():
-        for i in range(len(seg_lens)):
-            seg_to_bone[f"{fname}_seg{i}"] = f"{fname}_{JOINT_NAMES[i]}"
-    for m in meshes:
-        bone = seg_to_bone[m.name]
-        vg = m.vertex_groups.new(name=bone)
-        vg.add(range(len(m.data.vertices)), 1.0, 'REPLACE')
-
+def _bind(obj, arm):
+    """메쉬를 armature에 자동가중치로 바인딩(연속 손가락이 매끄럽게 휜다)."""
     for o in bpy.context.selected_objects:
         o.select_set(False)
-    for m in meshes:
-        m.select_set(True)
-    bpy.context.view_layer.objects.active = meshes[0]
-    bpy.ops.object.join()
-    hand = bpy.context.active_object
-    hand.name = "Hand"
-    # 가벼운 스무딩: 인접 정점 거리 기반 merge로 마디 접합부 정리(겹친 캡 통합).
-    bpy.context.view_layer.objects.active = hand
-    bpy.ops.object.mode_set(mode='EDIT')
-    bpy.ops.mesh.select_all(action='SELECT')
-    bpy.ops.mesh.remove_doubles(threshold=0.5)   # 0.5mm 이내 정점 병합
-    bpy.ops.object.mode_set(mode='OBJECT')
-    for poly in hand.data.polygons:
-        poly.use_smooth = True
-    # armature 모디파이어(강체 가중치). subdivision은 표면만 매끈하게 1단계(FEM 정점수 절제).
-    mod = hand.modifiers.new("Armature", 'ARMATURE')
-    mod.object = arm_obj
-    hand.parent = arm_obj
-    return hand
+    obj.select_set(True)
+    arm.select_set(True)
+    bpy.context.view_layer.objects.active = arm
+    try:
+        bpy.ops.object.parent_set(type='ARMATURE_AUTO')
+    except RuntimeError:
+        mod = obj.modifiers.new("Armature", 'ARMATURE')
+        mod.object = arm
+        obj.parent = arm
 
 
 def _add_blendshapes(hand):
-    """open(기준)·fist·spread 셰이프키. fist는 본 회전이 담당하나,
-    셰이프키 핸들을 만들어 그립 프리셋이 미세 보정에 쓸 수 있게 한다."""
+    """계약 유지용 셰이프키(그립은 본 회전이 담당, 셰이프키는 미세보정 핸들)."""
     hand.shape_key_add(name="Basis")
     fist = hand.shape_key_add(name="fist")
     spread = hand.shape_key_add(name="spread")
@@ -165,29 +150,26 @@ def _add_blendshapes(hand):
 
 
 def build_hand(handedness="right", unit_scale=1.0):
-    """리깅 손을 생성하고 RiggedHand 직렬화 dict를 반환한다.
+    """리깅된 매끄러운 손을 생성하고 RiggedHand 직렬화 dict를 반환한다.
 
+    Skin 모디파이어 기반 연속 손가락 + 관절별 named 본 + 자동가중치.
     반환 dict는 hand/types.py RiggedHand.from_dict 와 호환.
-    프로세스 경계(headless runner)를 JSON으로 넘기기 위해 dict로 돌려준다.
     """
-    arm_obj, arm_data = _new_armature()
-    chains = _build_bones(arm_data, handedness)
-    palm = _build_palm_mesh()
-    fingers = _build_finger_meshes(handedness)
-    hand = _join_and_skin([palm] + fingers, arm_obj)
-    blendshapes = _add_blendshapes(hand)
+    obj = _build_skin_mesh(handedness)
+    arm, chains = _build_armature(handedness)
+    _bind(obj, arm)
+    blendshapes = _add_blendshapes(obj)
 
-    # 손은 mm로 정의되어 있다(폰 .k 좌표와 동일 스케일). 추가 스케일이 필요하면
-    # armature에만 적용하고 자식 메쉬는 부모 상속으로 따라간다 — 둘 다 transform_apply
-    # 하면 스케일이 중첩 적용되므로 금지(과거 1000² 폭주 버그).
-    extra = unit_scale / 1000.0   # 기존 호출이 1000(mm)을 넘기던 호환: mm 기준이므로 1.0
+    # 손은 mm로 정의(폰 .k와 동일 스케일). unit_scale=1000이면 그대로(호환), 그 외는
+    # armature에만 스케일 적용(자식 메쉬는 상속 — 이중 transform_apply 금지).
+    extra = unit_scale / 1000.0
     if abs(extra - 1.0) > 1e-9:
-        arm_obj.scale = (extra, extra, extra)
+        arm.scale = (extra, extra, extra)
         bpy.context.view_layer.update()
 
     return {
-        "object_name": hand.name,
-        "armature_name": arm_obj.name,
+        "object_name": obj.name,
+        "armature_name": arm.name,
         "finger_chains": chains,
         "blendshapes": blendshapes,
         "handedness": handedness,

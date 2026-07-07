@@ -151,19 +151,19 @@ def _grip_phone(params: dict) -> dict:
     phone = bpy.context.active_object
     phone.name = "Phone"
 
-    # 3) 위치맞춤(승자 접근 A): 손바닥 윗면을 폰 뒷면에 붙이고, 손가락 뿌리가
-    #    폰 가까운 긴모서리를 넘어 앞면으로 말리게 한다.
-    #    손 local: 손바닥 두께 t=25 → 반두께 12.5, 손가락 뿌리 y≈90.
+    # 3) 위치맞춤: 손바닥을 폰 뒷면에 두고 손가락 뿌리(너클)가 가까운 긴모서리를
+    #    넘어 앞면으로 말리게 한다. Skin 손 치수: 손바닥 반경 ~24, 너클 y≈62.
     #    손은 armature의 자식 → armature만 이동(이중변환 방지).
     pbb = [phone.matrix_world @ Vector(c) for c in phone.bound_box]
     pmin = Vector((min(v.x for v in pbb), min(v.y for v in pbb), min(v.z for v in pbb)))
     pmax = Vector((max(v.x for v in pbb), max(v.y for v in pbb), max(v.z for v in pbb)))
     center = (pmin + pmax) * 0.5
-    half_t = 25.0 * 0.5            # PALM 두께 반(손바닥 윗면이 z=+half_t local)
+    palm_radius = 24.0            # Skin 손바닥 반경(손바닥 뒷면이 z=-palm_radius local)
+    knuckle_y = 62.0             # 너클(손가락 뿌리) local y
     arm.location = (
         center.x,                 # x: 폰 중심
-        pmax.y - 90.0,            # y: 손가락 뿌리(y≈90)가 가까운 긴모서리(pmax.y)에
-        pmin.z - half_t,          # z: 손바닥 윗면이 폰 뒷면(pmin.z)에 닿게
+        pmax.y - knuckle_y,       # y: 너클이 가까운 긴모서리(pmax.y)에
+        pmin.z - palm_radius,     # z: 손바닥 뒷면이 폰 뒷면(pmin.z)에
     )
     arm.rotation_euler = (0, 0, 0)
     bpy.context.view_layer.update()
