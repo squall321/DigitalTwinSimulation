@@ -178,19 +178,71 @@ def _grip_phone(params: dict) -> dict:
     # 6) 관통 측정
     pen = grip_ops.measure_penetration(hand.name, phone.name)
 
-    # 7) 출력: 손 포즈 STL + 폰 외곽(그립으로 함몰된 버전 = 현재는 원본 외곽 복제,
-    #    실제 함몰은 슬라이스4 모핑이 손가락 접촉면을 반영. 여기선 접촉 메타만 전달)
+    # 7) 그립 자국을 폰 표면에 실제로 찍는다: 손이 누르는 곳에서 폰을 안쪽으로 함몰.
+    #    이 함몰된 외곽이 슬라이스4 모핑의 입력 → 재해석 가능한 .k에 그립 자국이 남는다.
+    press = params.get("press_depth", 2.5)
+    reach = params.get("contact_range", 5.0)
+    dent_info = _deform_phone_by_grip(hand, phone, press_depth=press, contact_range=reach)
+
     result = {
         "hand": hand_info, "style": style, "penetration": pen, "grip_meta": grip_meta,
-        "phone_bbox": {"min": list(pmin), "max": list(pmax)},
+        "phone_bbox": {"min": list(pmin), "max": list(pmax)}, "dent": dent_info,
     }
     if hand_out:
         _export_object_stl(hand.name, hand_out)
         result["hand_stl"] = hand_out
     if edited_out:
-        _export_object_stl(phone.name, edited_out)
+        _export_object_stl(phone.name, edited_out)   # 이제 함몰된 폰이 나간다
         result["edited_outer_stl"] = edited_out
     return {"ok": True, "result": result}
+
+
+def _deform_phone_by_grip(hand, phone, press_depth=2.5, contact_range=5.0):
+    """손이 누르는 곳에서 폰 표면을 안쪽으로 함몰시킨다(그립 자국 → 모핑 입력).
+
+    손을 몰드로 사용: 각 폰 정점에서 가장 가까운 손 표면점을 찾아, 손이 폰 바깥쪽에서
+    contact_range 이내로 다가와 있으면 그 정점을 폰 안쪽으로 밀어 넣는다(거리 기반 감쇠).
+    world 좌표로 계산(손은 armature로 이동돼 world 행렬이 항등 아님).
+    """
+    from mathutils.bvhtree import BVHTree
+    deps = bpy.context.evaluated_depsgraph_get()
+
+    # 손 표면 BVH를 world 좌표로 구성
+    he = hand.evaluated_get(deps)
+    hm = he.to_mesh()
+    mw_h = hand.matrix_world
+    hverts = [mw_h @ v.co for v in hm.vertices]
+    hpolys = [tuple(p.vertices) for p in hm.polygons]
+    hand_bvh = BVHTree.FromPolygons(hverts, hpolys)
+    he.to_mesh_clear()
+
+    mw_p = phone.matrix_world
+    mw_p_inv = mw_p.inverted()
+    rot_p = mw_p.to_3x3()
+    phone.data.calc_normals_split() if hasattr(phone.data, "calc_normals_split") else None
+
+    n_dented = 0
+    max_dent = 0.0
+    for v in phone.data.vertices:
+        wco = mw_p @ v.co
+        hit = hand_bvh.find_nearest(wco)
+        if hit[0] is None:
+            continue
+        loc, _nor, _idx, dist = hit
+        if dist is None or dist > contact_range:
+            continue
+        wn = (rot_p @ v.normal).normalized()
+        # 손이 폰 바깥쪽(법선 방향)에 있어야 누르는 것 → 안쪽으로 함몰
+        if (loc - wco).dot(wn) <= 0:
+            continue
+        amt = press_depth * (1.0 - dist / contact_range)   # 가까울수록 깊게
+        new_wco = wco - wn * amt
+        v.co = mw_p_inv @ new_wco
+        n_dented += 1
+        max_dent = max(max_dent, amt)
+
+    phone.data.update()
+    return {"dented_verts": n_dented, "max_dent": round(max_dent, 4)}
 
 
 def main():
