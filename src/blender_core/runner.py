@@ -151,29 +151,28 @@ def _grip_phone(params: dict) -> dict:
     phone = bpy.context.active_object
     phone.name = "Phone"
 
-    # 3) 위치맞춤: 손바닥을 폰 뒷면에 두고 손가락 뿌리(너클)가 가까운 긴모서리를
-    #    넘어 앞면으로 말리게 한다. Skin 손 치수: 손바닥 반경 ~24, 너클 y≈62.
-    #    손은 armature의 자식 → armature만 이동(이중변환 방지).
+    # 3) 위치맞춤: 폰을 손바닥 안쪽(+z)에 얹어 쥐는 자세. 손가락이 컵처럼 살짝 굽어
+    #    폰 표면에 얹힌다. 스윕으로 찾은 오프셋 — 폰 중심이 손 로컬 (0, PALM_Y, PALM_Z).
+    #    손은 armature의 자식이고 arm은 회전/스케일 없음 → world = arm.location + hand_local.
     pbb = [phone.matrix_world @ Vector(c) for c in phone.bound_box]
     pmin = Vector((min(v.x for v in pbb), min(v.y for v in pbb), min(v.z for v in pbb)))
     pmax = Vector((max(v.x for v in pbb), max(v.y for v in pbb), max(v.z for v in pbb)))
     center = (pmin + pmax) * 0.5
-    palm_radius = 24.0            # Skin 손바닥 반경(손바닥 뒷면이 z=-palm_radius local)
-    knuckle_y = 62.0             # 너클(손가락 뿌리) local y
+    PALM_Y = 50.0   # 폰 중심이 손바닥~손가락 걸치는 위치(손 로컬 y)
+    PALM_Z = 25.0   # 폰이 손바닥 안쪽(+z) 표면에 얹힘
     arm.location = (
-        center.x,                 # x: 폰 중심
-        pmax.y - knuckle_y,       # y: 너클이 가까운 긴모서리(pmax.y)에
-        pmin.z - palm_radius,     # z: 손바닥 뒷면이 폰 뒷면(pmin.z)에
+        center.x - 0.0,
+        center.y - PALM_Y,
+        center.z - PALM_Z,
     )
     arm.rotation_euler = (0, 0, 0)
     bpy.context.view_layer.update()
 
     # 4) 그립 프리셋 적용
     grip_meta = grip_ops.apply_grip(hand_info, style=style)
-
-    # 5) shrinkwrap 2패스(관통 완화 + 밀착, 승자 graft)
-    grip_ops.shrinkwrap_fingers_to_phone(hand.name, phone.name)
     bpy.context.view_layer.update()
+    # (shrinkwrap 제거: 손 메쉬를 왜곡시켜 아티팩트 유발. 포즈만으로 자연스럽고,
+    #  폰 함몰은 아래 _deform_phone_by_grip이 담당한다.)
 
     # 6) 관통 측정
     pen = grip_ops.measure_penetration(hand.name, phone.name)
