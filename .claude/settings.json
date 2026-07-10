@@ -58,7 +58,11 @@
       "Bash(/home/koopark/claude/DigitalTwinSimulation/.venv/bin/pytest tests/test_grip_styles.py -q)",
       "Bash(timeout 120 /home/koopark/claude/DigitalTwinSimulation/.venv/bin/pytest tests/test_grip_styles.py -q)",
       "Bash(git --no-pager log --oneline -1)",
-      "Bash(/home/koopark/claude/DigitalTwinSimulation/.venv/bin/pytest -q tests/test_grip_styles.py)"
+      "Bash(/home/koopark/claude/DigitalTwinSimulation/.venv/bin/pytest -q tests/test_grip_styles.py)",
+      "Bash(convert __TRACKED_VAR__/r_hero.png -resize 760x -quality 87 __TRACKED_VAR__/hero.jpg)",
+      "Bash(convert __TRACKED_VAR__/r_top.png -resize 560x -quality 87 __TRACKED_VAR__/griptop.jpg)",
+      "Bash(sed -i 's|>3.49<span style=\"font-size:15px\">mm</span></div><div class=\"k\">그립 함몰 깊이 \\(측정값\\)|>2.45<span style=\"font-size:15px\">mm</span></div><div class=\"k\">그립 함몰 깊이 \\(측정값\\)|' __TRACKED_VAR__/template.html)",
+      "Bash(timeout 90 /snap/bin/blender --background --factory-startup --python /tmp/claude-1000/-home-koopark-claude-DigitalTwinSimulation/df6e995d-977b-454e-b8c0-f6388dcb477c/scratchpad/webgrip/heat.py -- /tmp/claude-1000/-home-koopark-claude-DigitalTwinSimulation/df6e995d-977b-454e-b8c0-f6388dcb477c/scratchpad/webgrip/outer.stl /tmp/claude-1000/-home-koopark-claude-DigitalTwinSimulation/df6e995d-977b-454e-b8c0-f6388dcb477c/scratchpad/webgrip/dent.stl /tmp/claude-1000/-home-koopark-claude-DigitalTwinSimulation/df6e995d-977b-454e-b8c0-f6388dcb477c/scratchpad/webgrip/heatmap.png)"
     ]
   }
 }

@@ -1,35 +1,14 @@
 {
   "version": "1.0",
-  "enabled": true,
+  "enabled": false,
   "teamName": "",
   "feature": "core",
   "pdcaPhase": "do",
   "orchestrationPattern": "leader",
   "ctoAgent": "opus",
   "startedAt": "2026-07-09T23:18:05.216Z",
-  "lastUpdated": "2026-07-10T02:52:04.067Z",
-  "teammates": [
-    {
-      "name": "a3a0ba600411cc942",
-      "role": "workflow-subagent",
-      "model": "sonnet",
-      "status": "completed",
-      "currentTask": null,
-      "taskId": null,
-      "startedAt": "2026-07-09T23:18:05.217Z",
-      "lastActivityAt": "2026-07-09T23:21:38.292Z"
-    },
-    {
-      "name": "a84e751eea182a5df",
-      "role": "workflow-subagent",
-      "model": "sonnet",
-      "status": "completed",
-      "currentTask": null,
-      "taskId": null,
-      "startedAt": "2026-07-09T23:21:38.320Z",
-      "lastActivityAt": "2026-07-10T02:52:04.066Z"
-    }
-  ],
+  "lastUpdated": "2026-07-10T03:55:14.436Z",
+  "teammates": [],
   "progress": {
     "totalTasks": 0,
     "completedTasks": 0,
