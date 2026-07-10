@@ -37,7 +37,7 @@ def _boundary_displacement(X, bnd_rows, target_pts):
 
 
 def morph_phone_volume(mesh, edited_outer_stl, method="laplacian", scale=1.0,
-                       n_steps=8, max_substeps=6):
+                       n_steps=8, max_substeps=6, max_aspect_growth=5.0):
     """편집 외곽 STL을 입력으로 체적 메쉬 노드를 전파 변형해 StageResult 반환.
 
     절차(DESIGN §4.4):
@@ -78,16 +78,25 @@ def morph_phone_volume(mesh, edited_outer_stl, method="laplacian", scale=1.0,
     # 전체 경계 변위(scale 적용)
     bnd_disp_full = scale * _boundary_displacement(X0, bnd_rows, target_pts)
 
-    # 내부 노드 0개면 경계만 이동(no-op 단락, 검증 D2).
-    if n_internal == 0:
-        X = X0.copy()
-        X[bnd_rows] += bnd_disp_full
-        return _finalize(mesh, X0, X, row2nid, method, base_diag, scale)
-
     rsolids = [_RowSolid(el.eid, el.pid,
                          [nid2row[n_] for n_ in el.node_ids if n_ in nid2row],
                          el.etype)
                for el in mesh.solids]
+
+    # aspect 게이트 기준 = 원본 대비 성장률(감사 지적: 절대값 게이트는 얇은 층이 정상인
+    # 실메쉬에서 오탐 — 원본 aspect 191인 배터리도 원본이 그런 것). 모핑이 aspect를
+    # max_aspect_growth배 이상 악화시키면 near-sliver로 보고 거부한다.
+    q0 = check_quality(X0, rsolids, X0)
+    baseline_aspect = float(q0["aspect_max"])
+    aspect_limit = baseline_aspect * max_aspect_growth
+    base_diag["baseline_aspect"] = baseline_aspect
+
+    # 내부 노드 0개면 경계만 이동(no-op 단락, 검증 D2).
+    if n_internal == 0:
+        X = X0.copy()
+        X[bnd_rows] += bnd_disp_full
+        return _finalize(mesh, X0, X, row2nid, method, base_diag, scale,
+                         rsolids=rsolids, aspect_limit=aspect_limit)
 
     if method == "rbf":
         if len(bnd_rows) > _RBF_B_LIMIT:
@@ -96,7 +105,7 @@ def morph_phone_volume(mesh, edited_outer_stl, method="laplacian", scale=1.0,
                 "경계 다운샘플 또는 laplacian 사용.", **base_diag)
         X = morph_rbf(X0, bnd_rows, bnd_disp_full)
         return _finalize(mesh, X0, X, row2nid, method, base_diag, scale,
-                         rsolids=rsolids)
+                         rsolids=rsolids, aspect_limit=aspect_limit)
 
     # laplacian 증분: 매 스텝 변형메쉬에서 재조립(준-비선형, DESIGN §7-2).
     X = X0.copy()
@@ -112,26 +121,33 @@ def morph_phone_volume(mesh, edited_outer_stl, method="laplacian", scale=1.0,
             step_disp = bnd_disp_full * frac
             X_try = morph_laplacian(X, rsolids, bnd_rows, step_disp)
             q = check_quality(X_try, rsolids, X0)
-            if not q["inverted"] and q["min_jacobian"] > 0:
+            if (not q["inverted"] and q["min_jacobian"] > 0
+                    and q["aspect_max"] <= aspect_limit):
                 X = X_try
                 applied += frac
                 last_quality = q
                 accepted = True
                 break
-            # 게이트 실패 → 스텝 이분
+            # 게이트 실패(뒤집힘 또는 aspect 악화) → 스텝 이분
             substep_used += 1
             frac *= 0.5
             if substep_used > max_substeps:
                 break
         if not accepted:
-            q = q if last_quality is None else last_quality
-            inverted = check_quality(X_try, rsolids, X0)["inverted"]
+            q_last = check_quality(X_try, rsolids, X0)
             new_scale = round(scale * 0.5, 4)
+            if q_last["inverted"] or q_last["min_jacobian"] <= 0:
+                msg = (f"요소 뒤집힘(압입 inversion). 변형을 줄이세요(scale={new_scale}). "
+                       "그래도 실패 시 그립을 완화하세요. RBF는 압입에 더 약합니다.")
+            else:
+                msg = (f"요소 aspect 악화(near-sliver): {q_last['aspect_max']:.1f} > "
+                       f"허용 {aspect_limit:.1f} (원본 {baseline_aspect:.1f}×"
+                       f"{max_aspect_growth}). 변형을 줄이세요(scale={new_scale}).")
             return StageResult.fail(
-                f"요소 뒤집힘(압입 inversion). 변형을 줄이세요(scale={new_scale}). "
-                "그래도 실패 시 그립을 완화하세요. RBF는 압입에 더 약합니다.",
-                min_jacobian=float(check_quality(X_try, rsolids, X0)["min_jacobian"]),
-                inverted=inverted,
+                msg,
+                min_jacobian=float(q_last["min_jacobian"]),
+                inverted=q_last["inverted"],
+                aspect_max=float(q_last["aspect_max"]),
                 suggested_scale=new_scale,
                 **base_diag,
             )
@@ -149,7 +165,8 @@ def morph_phone_volume(mesh, edited_outer_stl, method="laplacian", scale=1.0,
     )
 
 
-def _finalize(mesh, X0, X, row2nid, method, base_diag, scale, rsolids=None):
+def _finalize(mesh, X0, X, row2nid, method, base_diag, scale, rsolids=None,
+              aspect_limit=None):
     """rbf/no-op 경로의 최종 품질 게이트 + 결과 봉투 생성."""
     if rsolids is None:
         rsolids = [_RowSolid(el.eid, el.pid,
@@ -160,11 +177,16 @@ def _finalize(mesh, X0, X, row2nid, method, base_diag, scale, rsolids=None):
         "min_jacobian": float(q["min_jacobian"]),
         "aspect_max": float(q["aspect_max"]),
     })
+    new_scale = round(scale * 0.5, 4)
     if q["inverted"] or q["min_jacobian"] <= 0:
-        new_scale = round(scale * 0.5, 4)
         return StageResult.fail(
             f"요소 뒤집힘. 변형을 줄이세요(scale={new_scale}).",
             inverted=q["inverted"], suggested_scale=new_scale, **base_diag)
+    if aspect_limit is not None and q["aspect_max"] > aspect_limit:
+        return StageResult.fail(
+            f"요소 aspect 악화(near-sliver): {q['aspect_max']:.1f} > 허용 "
+            f"{aspect_limit:.1f}. 변형을 줄이세요(scale={new_scale}).",
+            suggested_scale=new_scale, **base_diag)
     new_coords = {row2nid[i]: tuple(X[i]) for i in range(X.shape[0])}
     return StageResult.success(
         message=f"모핑 성공({method}, min_jacobian={q['min_jacobian']:.4g}).",

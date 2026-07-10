@@ -50,8 +50,8 @@ def _phone_and_outer(tmp_path):
     make_phone_k(str(k))
     mesh = parse_k_file(str(k))
     tris, used, _diag = build_surface(mesh)
-    X, nid2row, row2nid = mesh.dense_index()
-    verts = [tuple(X[nid2row[n]]) for n in row2nid]
+    # tris는 build_surface의 used 인덱싱 → verts도 used 순서 (pipeline 버그 수정과 동일)
+    verts = [tuple(mesh.nodes[nid]) for nid in used]
     stl = tmp_path / "outer.stl"
     write_stl(str(stl), verts, tris, binary=True)
     return mesh, stl
