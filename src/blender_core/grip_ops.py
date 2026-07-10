@@ -130,6 +130,109 @@ def _inside_parity(bvh, pt, direction=None, max_hits=64):
     return count % 2 == 1
 
 
+def _finger_vert_indices(hand, chains):
+    """자동가중치 vertex group에서 손가락별 정점 인덱스를 수집(가중치 합 > 0.3)."""
+    gidx_by_name = {g.name: g.index for g in hand.vertex_groups}
+    fmap = {}
+    for finger, bones in chains.items():
+        gset = {gidx_by_name[b] for b in bones if b in gidx_by_name}
+        idxs = []
+        for v in hand.data.vertices:
+            w = sum(g.weight for g in v.groups if g.group in gset)
+            if w > 0.3:
+                idxs.append(v.index)
+        fmap[finger] = idxs
+    return fmap
+
+
+def _set_finger_pose(arm_obj, chain, preset, finger, s):
+    """한 손가락의 프리셋 굴곡을 s배(0~1)로 설정. spread는 유지(부채꼴은 접촉 무관)."""
+    is_thumb = (finger == "thumb")
+    for i, bn in enumerate(chain):
+        pb = arm_obj.pose.bones.get(bn)
+        if pb is None:
+            continue
+        pb.rotation_mode = 'XYZ'
+        if is_thumb:
+            pairs = preset["thumb"]
+            rx, rz = pairs[i] if i < len(pairs) else pairs[-1]
+            pb.rotation_euler = (rx * s, 0.0, rz * s)
+        else:
+            angles = preset["per_finger"][finger]
+            rx = angles[i] if i < len(angles) else angles[-1]
+            rz = preset["spread"][finger] if i == 0 else 0.0
+            pb.rotation_euler = (rx * s, 0.0, rz)
+
+
+def resolve_finger_contact(hand_info: dict, phone_name: str, preset: dict,
+                           tol: float = 0.5, max_iter: int = 7) -> dict:
+    """손가락별 접촉 해소: 관통 깊이가 tol(mm) 이하가 될 때까지 굴곡을 이분탐색으로 줄인다.
+
+    고정 프리셋 포즈는 손가락/엄지를 폰 속으로 통과시킨다(감사·사용자 지적: 엄지 관통).
+    실제 접촉처럼 각 손가락이 표면에서 멈추도록, 그 손가락 정점들의 최대 관통 깊이
+    (레이 패리티 내부판정 + 최근접 거리)를 측정하며 굴곡 배율 s∈[0,1]을 탐색한다.
+
+    반환: {finger: {"scale": 채택 배율, "depth": 잔여 관통(mm)}, "palm_depth": 손바닥 관통}.
+    손바닥은 굴곡으로 못 빼므로 측정만 하고 경고(위치 문제는 배치가 해결해야).
+    """
+    from mathutils.bvhtree import BVHTree
+    hand = bpy.data.objects[hand_info["object_name"]]
+    arm = bpy.data.objects[hand_info["armature_name"]]
+    phone = bpy.data.objects[phone_name]
+
+    deps = bpy.context.evaluated_depsgraph_get()
+    phone_bvh = BVHTree.FromObject(phone, deps)
+    pinv = phone.matrix_world.inverted()
+    fmap = _finger_vert_indices(hand, hand_info["finger_chains"])
+
+    def max_depth(vert_idx):
+        d = bpy.context.evaluated_depsgraph_get()
+        he = hand.evaluated_get(d)
+        me = he.to_mesh()
+        mw = hand.matrix_world
+        worst = 0.0
+        for i in vert_idx:
+            local = pinv @ (mw @ me.vertices[i].co)
+            if _inside_parity(phone_bvh, local):
+                loc, _n, _i, _d = phone_bvh.find_nearest(local)
+                if loc is not None:
+                    worst = max(worst, (Vector(local) - Vector(loc)).length)
+        he.to_mesh_clear()
+        return worst
+
+    report = {}
+    for finger, chain in hand_info["finger_chains"].items():
+        idxs = fmap.get(finger) or []
+        if not idxs:
+            continue
+
+        def measure(s):
+            _set_finger_pose(arm, chain, preset, finger, s)
+            bpy.context.view_layer.update()
+            return max_depth(idxs)
+
+        depth = measure(1.0)
+        if depth <= tol:
+            report[finger] = {"scale": 1.0, "depth": round(depth, 3)}
+            continue
+        lo, hi = 0.0, 1.0                      # lo=허용, hi=관통
+        for _ in range(max_iter):
+            mid = (lo + hi) * 0.5
+            if measure(mid) <= tol:
+                lo = mid
+            else:
+                hi = mid
+        depth = measure(lo)                    # 최종 포즈를 lo로 고정
+        report[finger] = {"scale": round(lo, 3), "depth": round(depth, 3)}
+
+    # 손바닥(굴곡 무관) 관통은 측정만 — 배치 문제의 정직한 노출
+    palm_idx = [v.index for v in hand.data.vertices
+                if any(g.group == hand.vertex_groups["palm"].index for g in v.groups)
+                ] if "palm" in hand.vertex_groups else []
+    report["palm_depth"] = round(max_depth(palm_idx), 3) if palm_idx else 0.0
+    return report
+
+
 def measure_penetration(hand_name: str, phone_name: str, contact_tol: float = 3.0) -> dict:
     """손과 폰의 접촉/관통을 BVH로 측정.
 

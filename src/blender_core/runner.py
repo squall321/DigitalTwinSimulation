@@ -179,7 +179,13 @@ def _grip_phone(params: dict) -> dict:
     # (shrinkwrap 제거: 손 메쉬를 왜곡시켜 아티팩트 유발. 포즈만으로 자연스럽고,
     #  폰 함몰은 아래 _deform_phone_by_grip이 담당한다.)
 
-    # 6) 관통 측정
+    # 5) 접촉 해소: 고정 프리셋은 손가락/엄지를 폰 속으로 통과시킨다(사용자 지적).
+    #    손가락별 굴곡을 이분탐색으로 줄여 표면에 '닿되 파고들지 않게'(관통 ≤ tol).
+    contact_tol = params.get("contact_resolve_tol", 0.5)
+    contact = grip_ops.resolve_finger_contact(
+        hand_info, phone.name, grip_meta["preset"], tol=contact_tol)
+
+    # 6) 관통 측정 (해소 후 — tol 근처여야 정상)
     pen = grip_ops.measure_penetration(hand.name, phone.name)
 
     # 7) 그립 자국을 폰 표면에 실제로 찍는다: 손이 누르는 곳에서 폰을 안쪽으로 함몰.
@@ -190,6 +196,7 @@ def _grip_phone(params: dict) -> dict:
 
     result = {
         "hand": hand_info, "style": style, "penetration": pen, "grip_meta": grip_meta,
+        "contact_resolve": contact,
         "phone_bbox": {"min": list(pmin), "max": list(pmax)}, "dent": dent_info,
     }
     if hand_out:
