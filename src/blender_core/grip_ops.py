@@ -109,12 +109,33 @@ def apply_grip(hand_info: dict, style: str = "natural") -> dict:
     return {"style": style, "preset": preset}
 
 
+def _inside_parity(bvh, pt, direction=None, max_hits=64):
+    """레이 패리티 내부판정: 고정 방향 레이의 교차 횟수가 홀수면 내부.
+
+    find_nearest 법선 dot 부호는 모서리/얇은 판에서 뒤집혀 허위 관통을 만든다
+    (감사 실측: 기하학적으로 불가능한 14~24mm 관통값). 패리티는 winding 무관하게
+    강건하다. 단 타깃이 watertight가 아니면(구멍) 패리티도 근사임을 유의.
+    """
+    if direction is None:
+        direction = Vector((0.5773503, 0.5773503, 0.5773503))   # 축 정렬 면과 어긋난 방향
+    count = 0
+    origin = Vector(pt)
+    eps = 1e-4
+    for _ in range(max_hits):
+        loc, _nor, _idx, _dist = bvh.ray_cast(origin, direction)
+        if loc is None:
+            break
+        count += 1
+        origin = Vector(loc) + direction * eps
+    return count % 2 == 1
+
+
 def measure_penetration(hand_name: str, phone_name: str, contact_tol: float = 3.0) -> dict:
     """손과 폰의 접촉/관통을 BVH로 측정.
 
-    관통(penetration): 손 정점이 폰 내부에 있는 깊이(shrinkwrap OUTSIDE면 보통 0).
-    접촉(contact): 손 정점이 폰 표면에서 contact_tol(mm) 이내에 있는 정도. shrinkwrap이
-      표면 바깥에 앉히므로 "관통 0"이어도 접촉은 있다 → 그립 밀착도의 실제 지표.
+    관통(penetration): 손 정점이 폰 내부에 있는 깊이 — 내부판정은 레이 패리티
+      (법선 dot 부호는 모서리에서 flaky → 감사 후 교체). 깊이는 최근접 표면 거리.
+    접촉(contact): 손 정점이 폰 표면에서 contact_tol(mm) 이내에 있는 정도.
 
     반환:
       max_penetration, penetrating_verts (기존 호환),
@@ -147,12 +168,13 @@ def measure_penetration(hand_name: str, phone_name: str, contact_tol: float = 3.
         if loc is not None:
             d = (Vector(local) - Vector(loc)).length
             min_gap = min(min_gap, d)
-            if (Vector(local) - Vector(loc)).dot(nor) < 0:      # 폰 내부(관통)
-                max_pen = max(max_pen, d)
-                n_pen += 1
-            if d <= contact_tol:                                 # 표면 근처(접촉)
+            if d <= contact_tol:
                 n_contact += 1
                 gap_sum += d
+            # 관통은 거리와 무관하게 패리티로 판정(깊은 관통을 놓치지 않게 전 정점 검사)
+            if _inside_parity(phone_bvh, local):                 # 폰 내부(관통)
+                max_pen = max(max_pen, d)
+                n_pen += 1
     hand_eval.to_mesh_clear()
 
     result = {

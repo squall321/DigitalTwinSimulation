@@ -43,3 +43,6 @@ def test_contact_metrics_present(tmp_path):
     assert p["min_gap"] is None or p["min_gap"] >= 0
     # 손이 폰 근처에 있으므로 최소갭은 유한하고 작아야(합성 폰 기준 <10mm)
     assert p["min_gap"] is not None and p["min_gap"] < 10.0
+    # 관통 깊이는 기하학적 상한(폰 반두께 4mm) 이내 — 패리티 판정의 타당성
+    # (이전 법선 dot 부호 판정은 58mm 같은 불가능값을 냈음)
+    assert p["max_penetration"] <= 4.0 + 1e-6
