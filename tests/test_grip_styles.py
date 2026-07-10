@@ -54,11 +54,10 @@ def test_styles_are_distinct():
 
     # pinch: 중지 근위 굴곡이 검지보다 훨씬 작음(나머지 펴짐)
     assert p["pinch"]["per_finger"]["middle"][0] < p["pinch"]["per_finger"]["index"][0] * 0.5
-    # natural: 얇은 폰을 얹어 쥐는 컵 형태 — 주먹처럼 꽉(>1.0)이 아니라 부드럽게 굽음
+    # natural: 파워그립 캐스케이드 — 균일 각도는 로봇처럼 뻣뻣(사용자 지적).
+    # 새끼가 가장 말리고 검지가 가장 펴진다: pinky > ring > middle > index.
     n = p["natural"]["per_finger"]
-    assert 0.2 < n["middle"][0] < 1.0 and 0.2 < n["pinky"][0] < 1.0
-    # 손가락들이 비슷하게 굽음(부채꼴 컵)
-    assert abs(n["index"][0] - n["ring"][0]) < 0.2
+    assert n["pinky"][0] > n["ring"][0] > n["middle"][0] > n["index"][0]
     # tight는 natural보다 더 굽고, edge_hold/loose는 더 얕다
     assert p["tight"]["per_finger"]["index"][0] > p["natural"]["per_finger"]["index"][0]
     assert p["edge_hold"]["per_finger"]["index"][0] < p["natural"]["per_finger"]["index"][0]
