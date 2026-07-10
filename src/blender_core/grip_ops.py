@@ -214,10 +214,8 @@ def resolve_finger_contact(hand_info: dict, phone_name: str, preset: dict,
             bpy.context.view_layer.update()
             return max_depth(idxs)
 
-        # 엄지는 폰 앞면을 눌러 ㄷ자 클램프를 이룬다 — 앞면 접촉은 의도된 것이므로
-        # 완전 후퇴시키지 않는다(그러면 손가락 옆으로 돌아가 클램프가 깨짐). 최소 굴곡(min_s)
-        # 아래로는 내리지 않고, 그 범위 안에서만 관통을 줄인다. 잔여 접촉은 함몰이 처리.
-        min_s = 0.65 if finger == "thumb" else 0.0
+        # 모든 손가락(엄지 포함)은 표면에서 멈춰야 한다 — 강제 min_scale로 관통을 남기지 않는다.
+        min_s = 0.0
 
         depth = measure(1.0)
         if depth <= tol:
