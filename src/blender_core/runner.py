@@ -4,6 +4,7 @@ import bpy
 import sys
 import json
 import os
+import math
 from mathutils import Vector
 
 # Blender가 이 스크립트를 --python으로 실행할 때 src가 sys.path에 없을 수 있다.
@@ -151,21 +152,25 @@ def _grip_phone(params: dict) -> dict:
     phone = bpy.context.active_object
     phone.name = "Phone"
 
-    # 3) 위치맞춤: 폰을 손바닥 안쪽(+z)에 얹어 쥐는 자세. 손가락이 컵처럼 살짝 굽어
-    #    폰 표면에 얹힌다. 스윕으로 찾은 오프셋 — 폰 중심이 손 로컬 (0, PALM_Y, PALM_Z).
-    #    손은 armature의 자식이고 arm은 회전/스케일 없음 → world = arm.location + hand_local.
+    # 3) 위치맞춤 (전략 C — 세로 랜드스케이프 클램프 그립):
+    #    손 전체를 z축 -90° 회전(arm_rot)시켜 손가락 배열축이 폰 너비(x)를 가로지르게 세운다.
+    #    네 손가락이 폰의 한쪽 긴 모서리를 감싸 앞면으로 접혀 내리고, 엄지가 반대 앞면을 눌러
+    #    폰을 손바닥/엄지와 손가락 사이에 클램프한다(트레이에 얹은 게 아니라 감쌈).
+    #    폰 중심 기준 오프셋(arm_offset)으로 일반화 — 폰 크기와 무관. arm_rot/arm_offset로 override.
+    #    arm.location은 world 좌표. _deform_phone_by_grip/measure_penetration은 matrix_world로
+    #    회전을 정확히 반영한다.
     pbb = [phone.matrix_world @ Vector(c) for c in phone.bound_box]
     pmin = Vector((min(v.x for v in pbb), min(v.y for v in pbb), min(v.z for v in pbb)))
     pmax = Vector((max(v.x for v in pbb), max(v.y for v in pbb), max(v.z for v in pbb)))
     center = (pmin + pmax) * 0.5
-    PALM_Y = 50.0   # 폰 중심이 손바닥~손가락 걸치는 위치(손 로컬 y)
-    PALM_Z = 25.0   # 폰이 손바닥 안쪽(+z) 표면에 얹힘
+    arm_offset = params.get("arm_offset", [-22.0, -9.0, -29.0])  # 폰 중심 기준 world 오프셋
+    arm_rot = params.get("arm_rot", [0.0, 0.0, -math.pi / 2])    # 손 전체 회전(z축 -90°)
     arm.location = (
-        center.x - 0.0,
-        center.y - PALM_Y,
-        center.z - PALM_Z,
+        center.x + arm_offset[0],
+        center.y + arm_offset[1],
+        center.z + arm_offset[2],
     )
-    arm.rotation_euler = (0, 0, 0)
+    arm.rotation_euler = tuple(arm_rot)
     bpy.context.view_layer.update()
 
     # 4) 그립 프리셋 적용
