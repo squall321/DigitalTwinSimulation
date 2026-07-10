@@ -21,8 +21,9 @@ GRIP_PRESETS = {
             "pinky":  [1.12, 1.50, 1.38],
         },
         "spread": {"index": 0.10, "middle": 0.02, "ring": -0.07, "pinky": -0.13},
-        # 엄지: 폰 앞면을 마주 눌러 손가락과 클램프(rx 세워 올리고 rz로 가로질러).
-        "thumb": [(0.6, -0.75), (0.35, -0.6), (0.25, -0.5)],
+        # 엄지: rz(가로 스윙)로 폰 앞면 위로 올려 누른다 — 손가락(뒷면 감쌈)과 ㄷ자 클램프.
+        # (이 손의 엄지는 rx가 아니라 rz로 앞면에 닿는다 — 실측으로 확인)
+        "thumb": [(0.8, -1.8), (0.5, -1.0), (0.3, -0.6)],
     },
     "tight": {
         "per_finger": {
@@ -32,7 +33,7 @@ GRIP_PRESETS = {
             "pinky":  [1.30, 1.58, 1.45],
         },
         "spread": {"index": 0.08, "middle": 0.0, "ring": -0.08, "pinky": -0.16},
-        "thumb": [(0.75, -0.8), (0.4, -0.65), (0.28, -0.55)],
+        "thumb": [(0.9, -1.9), (0.55, -1.05), (0.35, -0.65)],
     },
     # pinch: 엄지+검지로 폰 모서리를 집고 나머지는 편다.
     "pinch": {
@@ -213,11 +214,16 @@ def resolve_finger_contact(hand_info: dict, phone_name: str, preset: dict,
             bpy.context.view_layer.update()
             return max_depth(idxs)
 
+        # 엄지는 폰 앞면을 눌러 ㄷ자 클램프를 이룬다 — 앞면 접촉은 의도된 것이므로
+        # 완전 후퇴시키지 않는다(그러면 손가락 옆으로 돌아가 클램프가 깨짐). 최소 굴곡(min_s)
+        # 아래로는 내리지 않고, 그 범위 안에서만 관통을 줄인다. 잔여 접촉은 함몰이 처리.
+        min_s = 0.65 if finger == "thumb" else 0.0
+
         depth = measure(1.0)
         if depth <= tol:
             report[finger] = {"scale": 1.0, "depth": round(depth, 3)}
             continue
-        lo, hi = 0.0, 1.0                      # lo=허용, hi=관통
+        lo, hi = min_s, 1.0                    # lo=허용 하한, hi=관통
         for _ in range(max_iter):
             mid = (lo + hi) * 0.5
             if measure(mid) <= tol:

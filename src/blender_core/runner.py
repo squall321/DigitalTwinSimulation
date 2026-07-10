@@ -163,7 +163,7 @@ def _grip_phone(params: dict) -> dict:
     pmin = Vector((min(v.x for v in pbb), min(v.y for v in pbb), min(v.z for v in pbb)))
     pmax = Vector((max(v.x for v in pbb), max(v.y for v in pbb), max(v.z for v in pbb)))
     center = (pmin + pmax) * 0.5
-    arm_offset = params.get("arm_offset", [-18.0, -9.0, -28.0])  # 폰 중심 기준 world 오프셋
+    arm_offset = params.get("arm_offset", [-20.0, -9.0, -20.0])  # 폰 중심 기준 world 오프셋
     arm_rot = params.get("arm_rot", [0.0, 0.0, -math.pi / 2])    # 손 전체 회전(z축 -90°)
     arm.location = (
         center.x + arm_offset[0],
